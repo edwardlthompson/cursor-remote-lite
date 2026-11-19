@@ -25,6 +25,8 @@ Telegram (optional) ──Bot API─────────┤
 | `extension/` | Cursor/VS Code sidebar + setup panel that spawns the relay |
 | `app/` | Phone UI (GitHub Pages or served by the relay) |
 | `android/` | WebView shell (`com.cursorremote.lite`, launcher name **Cursor Remote**) |
+| `presence.mjs` | Per-window active-viewer lock (phone vs tablet) |
+| `packaging/windows/TrayHost/` | WinForms tray host + HKCU autostart / keep-awake |
 
 ## Network modes
 
@@ -43,3 +45,8 @@ Device pairing (one-time QR / deep link) + optional TOTP. No paid license. Token
 ## Packaging
 
 Windows EXE/MSI, Linux `.deb`/tar.gz, Android APK, Cursor/VS Code `.vsix` — see GitHub Releases.
+
+## Roadmap
+
+1.8.0 implements [ROADMAP-1.8.md](ROADMAP-1.8.md) (quick prompts + notification actions, diff review, multi-device lock, Windows tray/autostart).  
+1.8.1 adds clipboard bridge (phone ↔ Cursor) and a tablet landscape dashboard (window status strip + changed-files side panel).

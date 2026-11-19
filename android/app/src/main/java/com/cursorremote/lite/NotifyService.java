@@ -9,6 +9,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
+import android.media.AudioAttributes;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
@@ -32,7 +34,9 @@ import javax.crypto.spec.SecretKeySpec;
 // Android WebView has no Web Push, and Google's push service is missing on Huawei phones, so the app listens itself.
 public class NotifyService extends Service {
     static final String PREF = "notify";
-    private static final String CH_EVENTS = "events";
+    // New channel ids so sound/importance take effect (Android freezes channel settings after first create).
+    private static final String CH_DONE = "agent_done_v2";
+    private static final String CH_WAIT = "agent_wait_v2";
     private static final String CH_LISTEN = "listen";
     private static final int LISTEN_ID = 1;
 
@@ -63,12 +67,13 @@ public class NotifyService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         createChannels();
-        Notification listening = builder(CH_LISTEN)
+        Notification.Builder listenBuilder = builder(CH_LISTEN)
                 .setContentTitle(tr("Cursor Remote 正在等待 Agent 的消息", "Cursor Remote is listening for the Agent"))
                 .setContentText(tr("Agent 完成或需要你确认时会提醒你", "You'll be alerted when the Agent finishes or needs your OK"))
-                .setContentIntent(openApp(null, 0))
-                .setOngoing(true)
-                .build();
+                .setContentIntent(openApp(null, null, 0))
+                .setOngoing(true);
+        if (Build.VERSION.SDK_INT >= 26) listenBuilder.setSilent(true);
+        Notification listening = listenBuilder.build();
         if (Build.VERSION.SDK_INT >= 34) startForeground(LISTEN_ID, listening, ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING);
         else startForeground(LISTEN_ID, listening);
 
@@ -174,21 +179,43 @@ public class NotifyService extends Service {
 
     private void show(JSONObject e) {
         String win = e.optString("win", "");
+        String kind = e.optString("kind", "");
+        boolean done = "done".equals(kind);
+        String channel = done ? CH_DONE : CH_WAIT;
         // One notification per window: a newer event replaces the older one.
         int id = win.isEmpty() ? 2 : 3 + (win.hashCode() & 0x7fffffff) % 100000;
-        Notification n = builder(CH_EVENTS)
+        Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        Notification.Builder b = builder(channel)
                 .setContentTitle(e.optString("title", "Cursor Remote"))
                 .setContentText(e.optString("body", ""))
                 .setStyle(new Notification.BigTextStyle().bigText(e.optString("body", "")))
-                .setContentIntent(openApp(win, id))
+                .setContentIntent(openApp(win, null, id))
                 .setAutoCancel(true)
-                .build();
-        ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(id, n);
+                .setCategory(Notification.CATEGORY_MESSAGE)
+                .setVisibility(Notification.VISIBILITY_PRIVATE);
+        if (Build.VERSION.SDK_INT < 26) {
+            b.setPriority(Notification.PRIORITY_HIGH);
+            b.setDefaults(Notification.DEFAULT_ALL);
+            b.setSound(sound);
+        } else {
+            // Channel owns sound on O+; still set for OEMs that honor per-notification sound.
+            b.setSound(sound);
+        }
+        if ("waiting".equals(kind)) {
+            b.addAction(0, tr("批准", "Approve"), openApp(win, "approve", id + 100000));
+            b.addAction(0, tr("跳过", "Skip"), openApp(win, "skip", id + 200000));
+            b.addAction(0, tr("停止", "Stop"), openApp(win, "stop", id + 300000));
+        } else if (done) {
+            b.addAction(0, tr("继续", "Continue"), openApp(win, "continue", id + 400000));
+            b.addAction(0, tr("回复", "Reply"), openApp(win, "reply", id + 500000));
+        }
+        ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(id, b.build());
     }
 
-    private PendingIntent openApp(String win, int requestCode) {
+    private PendingIntent openApp(String win, String action, int requestCode) {
         Intent i = new Intent(this, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (win != null && !win.isEmpty()) i.putExtra("win", win);
+        if (action != null && !action.isEmpty()) i.putExtra("notifAction", action);
         return PendingIntent.getActivity(this, requestCode, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
@@ -200,9 +227,42 @@ public class NotifyService extends Service {
     private void createChannels() {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        nm.createNotificationChannel(new NotificationChannel(CH_EVENTS, tr("Agent 提醒", "Agent alerts"), NotificationManager.IMPORTANCE_HIGH));
+        // Drop silent legacy channel so users aren't stuck with a muted "events" channel from older installs.
+        try { nm.deleteNotificationChannel("events"); } catch (Exception ignored) {}
+
+        Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        AudioAttributes audio = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build();
+
+        NotificationChannel done = new NotificationChannel(
+                CH_DONE,
+                tr("Agent 已完成", "Agent finished"),
+                NotificationManager.IMPORTANCE_HIGH);
+        done.setDescription(tr("Agent 跑完一轮时提醒（带提示音）", "Alert with sound when the Agent finishes a turn"));
+        done.enableVibration(true);
+        done.setVibrationPattern(new long[]{0, 160, 80, 160});
+        done.enableLights(true);
+        done.setSound(sound, audio);
+        done.setShowBadge(true);
+        nm.createNotificationChannel(done);
+
+        NotificationChannel wait = new NotificationChannel(
+                CH_WAIT,
+                tr("Agent 等你确认", "Agent needs your OK"),
+                NotificationManager.IMPORTANCE_HIGH);
+        wait.setDescription(tr("Agent 停在 Run / Allow 时提醒", "Alert when the Agent waits for Run / Allow"));
+        wait.enableVibration(true);
+        wait.setVibrationPattern(new long[]{0, 220, 100, 220});
+        wait.enableLights(true);
+        wait.setSound(sound, audio);
+        wait.setShowBadge(true);
+        nm.createNotificationChannel(wait);
+
         NotificationChannel listen = new NotificationChannel(CH_LISTEN, tr("后台连接", "Background connection"), NotificationManager.IMPORTANCE_MIN);
         listen.setShowBadge(false);
+        listen.setSound(null, null);
         nm.createNotificationChannel(listen);
     }
 

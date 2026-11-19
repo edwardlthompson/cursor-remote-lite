@@ -1,29 +1,26 @@
-﻿using System.Diagnostics;
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Reflection;
-using System.Runtime.InteropServices;
 
+// Self-extracting CursorRemote.exe: unpack payload to LocalAppData, then run the tray host.
 internal static class Program
 {
-    [DllImport("kernel32.dll")]
-    private static extern bool AllocConsole();
-
-    private static int Main(string[] args)
+    private static int Main()
     {
-        AllocConsole();
-        Console.Title = "Cursor Remote";
-
-        var target = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CursorRemoteLite");
+        var target = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "CursorRemoteLite");
         Directory.CreateDirectory(target);
         var stamp = Path.Combine(target, ".version");
-        const string want = "1.7.0";
+        const string want = "1.8.0";
         var needExtract = !File.Exists(Path.Combine(target, "win-run.mjs"))
             || !File.Exists(stamp)
             || File.ReadAllText(stamp).Trim() != want;
 
         if (needExtract)
         {
-            Console.WriteLine("Extracting Cursor Remote 1.7.0…");
+            // Brief console only while extracting so first-run isn't silent forever.
+            AllocConsoleSafe();
+            Console.WriteLine("Extracting Cursor Remote 1.8.0…");
             using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip")
                 ?? throw new InvalidOperationException("Embedded payload.zip missing");
             var tmp = Path.Combine(Path.GetTempPath(), "CursorRemote-" + Guid.NewGuid().ToString("N") + ".zip");
@@ -55,31 +52,14 @@ internal static class Program
                 Environment.SetEnvironmentVariable("CURSOR_REMOTE_APK", bundled);
         }
 
-        var node = Path.Combine(target, "node", "node.exe");
-        var entry = Path.Combine(target, "win-run.mjs");
-        if (!File.Exists(node) || !File.Exists(entry))
-        {
-            Console.Error.WriteLine("Install payload incomplete under " + target);
-            Console.WriteLine("Press Enter to close…");
-            Console.ReadLine();
-            return 1;
-        }
+        return TrayApp.Run(target);
+    }
 
-        var psi = new ProcessStartInfo
-        {
-            FileName = node,
-            Arguments = "\"" + entry.Replace("\"", "\\\"") + "\"",
-            WorkingDirectory = target,
-            UseShellExecute = false,
-        };
-        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? "";
-        psi.Environment["PATH"] = Path.Combine(target, "node") + Path.PathSeparator
-            + Path.Combine(target, "tools") + Path.PathSeparator
-            + pathEnv;
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool AllocConsole();
 
-        using var p = Process.Start(psi);
-        if (p is null) return 1;
-        p.WaitForExit();
-        return p.ExitCode;
+    private static void AllocConsoleSafe()
+    {
+        try { AllocConsole(); } catch { /* */ }
     }
 }

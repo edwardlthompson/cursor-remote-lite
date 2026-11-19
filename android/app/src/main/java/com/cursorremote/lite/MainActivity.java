@@ -100,7 +100,9 @@ public class MainActivity extends Activity {
 
         if (!openPairLink(getIntent())) {
             String win = getIntent().getStringExtra("win");
+            String action = getIntent().getStringExtra("notifAction");
             if (win != null) prefs.edit().putString("openWin", win).apply();
+            if (action != null) prefs.edit().putString("notifAction", action).apply();
             if (state != null) web.restoreState(state);
             else load();
         }
@@ -162,7 +164,13 @@ public class MainActivity extends Activity {
         super.onNewIntent(intent);
         if (openPairLink(intent)) return;
         String win = intent.getStringExtra("win");
+        String action = intent.getStringExtra("notifAction");
         if (win != null) web.evaluateJavascript("window.openWin && openWin(" + JSONObject.quote(win) + ")", null);
+        if (action != null) {
+            web.evaluateJavascript(
+                "window.handleNotifAction && handleNotifAction(" + JSONObject.quote(action) + "," + JSONObject.quote(win == null ? "" : win) + ")",
+                null);
+        }
     }
 
     private void enableNotify(String config) {
@@ -294,6 +302,13 @@ public class MainActivity extends Activity {
             String win = prefs.getString("openWin", "");
             prefs.edit().remove("openWin").apply();
             return win;
+        }
+
+        @JavascriptInterface
+        public String takeNotifAction() {
+            String action = prefs.getString("notifAction", "");
+            prefs.edit().remove("notifAction").apply();
+            return action;
         }
 
         @JavascriptInterface

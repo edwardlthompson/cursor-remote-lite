@@ -181,17 +181,20 @@ jobs:
           NOTES=$(cat <<'EOF'
           ## Cursor Remote ${{ github.ref_name }}
 
+          Free MIT fork — tray packaging, tablet dashboard, clipboard bridge, multi-device lock, diff review, quick prompts, Android finish alerts with sound.
+
           ### Downloads
-          - **CursorRemote.exe** / **CursorRemote.msi** — Windows. Auto-pairs over ADB when the APK is nearby.
+          - **CursorRemote.exe** / **CursorRemote.msi** — Windows **system tray** (Start with Windows). ADB auto-pair when the APK is nearby.
           - **CursorRemote-linux-x64.deb** / **CursorRemote-*-linux-x64.tar.gz** — Linux Mint / Ubuntu (`cursor-remote`).
-          - **cursor-remote-lite.vsix** — free Cursor/VS Code extension (sidebar start/stop, setup panel).
-          - **CursorRemote.apk** — Android app (**Cursor Remote**).
+          - **cursor-remote-lite.vsix** — free Cursor/VS Code extension (setup panel + sidebar).
+          - **CursorRemote.apk** — Android (**Cursor Remote**); heads-up + sound when the Agent finishes.
 
           ### First run
-          1. Install/run the desktop package for your OS (or the VSIX).
-          2. Install the APK *or* leave it next to the desktop app with USB debugging on — ADB install + pairing deep link run automatically.
-          3. Keep the Cursor Remote window/terminal open while you use your phone.
-          Optional: set TELEGRAM_BOT_TOKEN and /start the bot for Approve/Skip/Stop alerts.
+          1. Install the desktop package (Windows tray preferred) or the VSIX.
+          2. Install the APK, or leave it next to the desktop app with USB debugging — ADB install + pairing run automatically.
+          3. In the app: ⋯ → Turn on notifications → Send a test notification.
+          Optional: TELEGRAM_BOT_TOKEN + /start for Approve/Skip/Stop/Continue.
+          See CHANGELOG.md for the full 1.8.x notes.
           EOF
           )
           gh release create "$GITHUB_REF_NAME" dist/* \

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+// spawn used for local git diff as well as SSH.
 
 const TEXT_LIMIT = 512 * 1024;
 const IMAGE_LIMIT = 8 * 1024 * 1024;
@@ -124,6 +125,85 @@ export async function readFile(host, p, size) {
   const buf = await readHead(host, p, Math.min(size, TEXT_LIMIT));
   if (buf.subarray(0, 8192).includes(0)) throw new Error('Binary file; cannot preview');
   return { text: buf.toString('utf8'), truncated: size > TEXT_LIMIT };
+}
+
+const DIFF_LIMIT = 200 * 1024;
+
+function localAbs(p) {
+  return p.replace(/^~(?=\/)/, os.homedir());
+}
+
+/** Unified diff for a workspace file (git). Falls back to full content for untracked files. */
+export async function readDiff(host, filePath) {
+  const name = path.posix.basename(filePath);
+  if (IMAGE_TYPES[path.extname(name).toLowerCase()]) {
+    return { error: 'Binary / image; open preview instead' };
+  }
+
+  if (!host) {
+    const abs = localAbs(filePath);
+    const dir = path.dirname(abs);
+    const root = await runLocal(['git', '-C', dir, 'rev-parse', '--show-toplevel']).catch(() => null);
+    if (!root) return { error: 'no-git', text: '' };
+    const rootDir = root.trim();
+    let text = await runLocal(['git', '-C', rootDir, 'diff', '--no-color', '--', abs]).catch(() => '');
+    if (!text.trim()) {
+      // Untracked or new: show as added file (capped).
+      const tracked = await runLocal(['git', '-C', rootDir, 'ls-files', '--', abs]).catch(() => '');
+      if (!tracked.trim()) {
+        try {
+          const body = fs.readFileSync(abs, 'utf8');
+          const lines = body.split('\n').slice(0, 4000);
+          text = `--- /dev/null\n+++ b/${name}\n` + lines.map(l => `+${l}`).join('\n');
+          if (body.length > DIFF_LIMIT) text += '\n… truncated';
+        } catch (e) {
+          return { error: e.message || 'unreadable' };
+        }
+      } else {
+        text = '(no unstaged diff vs HEAD for this file)';
+      }
+    }
+    const truncated = Buffer.byteLength(text, 'utf8') > DIFF_LIMIT;
+    if (truncated) text = text.slice(0, DIFF_LIMIT);
+    return { text, truncated };
+  }
+
+  // SSH remote
+  const rp = remotePath(filePath);
+  try {
+    const root = (await ssh(host, `git -C "$(dirname -- ${rp})" rev-parse --show-toplevel 2>/dev/null`, 4096)).toString().trim();
+    if (!root) return { error: 'no-git', text: '' };
+    const rq = remotePath(root);
+    let text = (await ssh(host, `git -C ${rq} diff --no-color -- ${rp} 2>/dev/null | head -c ${DIFF_LIMIT}`, DIFF_LIMIT)).toString('utf8');
+    if (!text.trim()) {
+      const tracked = (await ssh(host, `git -C ${rq} ls-files -- ${rp}`, 4096)).toString().trim();
+      if (!tracked) {
+        const body = (await ssh(host, `head -c ${DIFF_LIMIT} -- ${rp}`, DIFF_LIMIT)).toString('utf8');
+        const lines = body.split('\n').slice(0, 4000);
+        text = `--- /dev/null\n+++ b/${name}\n` + lines.map(l => `+${l}`).join('\n');
+      } else {
+        text = '(no unstaged diff vs HEAD for this file)';
+      }
+    }
+    return { text, truncated: text.length >= DIFF_LIMIT - 16 };
+  } catch (e) {
+    return { error: e.message || 'diff failed' };
+  }
+}
+
+function runLocal(args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(args[0], args.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });
+    const chunks = [];
+    let err = '';
+    child.stdout.on('data', c => chunks.push(c));
+    child.stderr.on('data', c => { err += c; });
+    child.on('error', reject);
+    child.on('close', code => {
+      if (code === 0) resolve(Buffer.concat(chunks).toString('utf8'));
+      else reject(new Error(err.trim().split('\n').pop() || `${args[0]} exited ${code}`));
+    });
+  });
 }
 
 // "src/a.py:12", "a.py#L12-20", "a.py (lines 3-9)" → path + first line.

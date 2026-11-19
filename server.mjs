@@ -7,14 +7,18 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 import qrcode from 'qrcode-terminal';
-import { workspaces, workspaceForTitle, fileSize, readFile, parseRef } from './files.mjs';
+import { workspaces, workspaceForTitle, fileSize, readFile, readDiff, parseRef } from './files.mjs';
 import {
   DATA_DIR, encryptUrl, createPairing, pairingValid, consumePairing, listDevices, addDevice, findDevice, updateDevice,
   removeDevice, totpConfig, verifyTotp, needsTotp, saveState, readState, appBase,
 } from './auth.mjs';
-import { pushPublicKey, openEventStream, closeEventStreams, addViewer, removeViewer, deliver, startWatcher, watcherStats } from './notify.mjs';
+import { pushPublicKey, openEventStream, closeEventStreams, addViewer, removeViewer, deliver, startWatcher, watcherStats, watcherWindowStates, listViewers } from './notify.mjs';
 import { startTelegramBot, telegramEnabled } from './telegram.mjs';
 import { createHeadless } from './headless.mjs';
+import {
+  claim as presenceClaim, heartbeat as presenceHeartbeat, release as presenceRelease,
+  releaseAllForDevice, canControl, CONTROL_TYPES, snapshot as presenceSnapshot, allSnapshots,
+} from './presence.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3939);
@@ -639,12 +643,40 @@ function pageHelpers() {
     }));
   };
 
+  // Selection in the editor, else the last visible code block, else last assistant text snippet.
+  const clipboardPull = () => {
+    const sel = (getSelection()?.toString() || '').trim();
+    if (sel) return { source: 'selection', text: sel.slice(0, 100000) };
+    const blocks = [...document.querySelectorAll(CODE_BLOCK)].filter(vis);
+    const lastBlock = blocks[blocks.length - 1];
+    if (lastBlock) {
+      const t = (lastBlock.innerText || '').trim();
+      if (t) return { source: 'code', text: t.slice(0, 100000) };
+    }
+    const assistants = [...document.querySelectorAll('[data-message-kind="assistant"], .markdown-root, .anysphere-markdown-body')].filter(vis);
+    const last = assistants[assistants.length - 1];
+    const t = (last?.innerText || '').trim();
+    if (t) return { source: 'assistant', text: t.slice(0, 100000) };
+    return { source: 'empty', text: '' };
+  };
+
   return { extract, locate, panelRect, control, menuItems, menuItem, quickOpenRows, agentState, queueTarget, stopTarget, focusQueueEdit,
     menuOpen, maxToggle, modelTarget, modelParams, paramTarget, subTarget, activeChatTab, tabTarget, hasComposer, filesState, fileTarget, questionTarget,
-    ensureAgentSidebar, agentSidebarVisible };
+    ensureAgentSidebar, agentSidebarVisible, clipboardPull };
 }
 
 const helpersCall = call => `(${pageHelpers.toString()})().${call}`;
+
+function deviceName(id) {
+  return listDevices().find(d => d.id === id)?.name || 'Device';
+}
+
+function broadcastPresence(winId) {
+  if (!winId) return;
+  for (const v of listViewers()) {
+    if (typeof v.emit === 'function') v.emit({ t: 'presence', ...presenceSnapshot(winId, v.deviceId) });
+  }
+}
 
 class Session {
   constructor(client, deviceId) {
@@ -1067,6 +1099,18 @@ class Session {
     }
   }
 
+  async openDiff(text) {
+    const label = path.posix.basename(parseRef(text).p);
+    this.emit({ t: 'diff', loading: true, name: label });
+    try {
+      const f = await this.resolveFile(text);
+      const body = await readDiff(f.host, f.path);
+      this.emit({ t: 'diff', name: path.posix.basename(f.path), path: f.path, host: f.host, ...body });
+    } catch (e) {
+      this.emit({ t: 'diff', error: e.message, name: label });
+    }
+  }
+
   async attach(targetId) {
     this.detach();
     const wins = await listWindows();
@@ -1088,11 +1132,20 @@ class Session {
     await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
     await this.refreshViewport();
     this.emit({ t: 'attached', id: win.id, title: win.title });
+    if (this.visible) {
+      presenceHeartbeat(win.id, this.deviceId, deviceName(this.deviceId));
+      broadcastPresence(win.id);
+    }
     await this.setMode(this.mode);
   }
 
   detach() {
     clearInterval(this.chatTimer);
+    const winId = this.targetId;
+    if (winId) {
+      presenceRelease(winId, this.deviceId);
+      broadcastPresence(winId);
+    }
     if (this.cdp) {
       const cdp = this.cdp;
       this.cdp = null;
@@ -1192,6 +1245,43 @@ class Session {
     }
   }
 
+  async pushClipboard(text) {
+    const body = String(text ?? '');
+    if (!body.trim()) throw new Error('Clipboard is empty');
+    const found = await this.cdp.evaluate(FOCUS_COMPOSER);
+    if (!found) throw new Error('No visible chat input: open the Agent panel in "Screen" first (or tap "Open chat")');
+    await this.typeText(body.slice(0, 100000));
+    this.emit({ t: 'status', ok: true, msg: 'Pasted into Cursor composer' });
+  }
+
+  async pullClipboard() {
+    const r = await this.cdp.evaluate(helpersCall('clipboardPull()'));
+    if (!r || r.source === 'empty' || !r.text) {
+      this.emit({ t: 'clipboard', op: 'pull', source: 'empty', text: '' });
+      throw new Error('Nothing selected and no code block found to copy');
+    }
+    this.emit({ t: 'clipboard', op: 'pull', source: r.source, text: r.text });
+  }
+
+  async sendDash() {
+    const wins = await listWindows();
+    const states = watcherWindowStates();
+    const byId = Object.fromEntries(states.map(s => [s.id, s]));
+    const list = wins.map(w => {
+      const s = byId[w.id];
+      return {
+        id: w.id,
+        title: w.title,
+        kind: w.kind,
+        name: s?.name || w.title,
+        state: s?.state || 'idle',
+        waitingText: s?.waitingText || '',
+        current: w.id === this.targetId,
+      };
+    });
+    this.emit({ t: 'dash', windows: list });
+  }
+
   async sendMessage(text, submit) {
     const found = await this.cdp.evaluate(FOCUS_COMPOSER);
     if (!found) throw new Error('No visible chat input: open the Agent panel in "Screen" first (or tap "Open chat")');
@@ -1228,9 +1318,43 @@ class Session {
     if (msg.t === 'windows') return this.emit({ t: 'windows', list: (await listWindows()).map(({ id, title, kind }) => ({ id, title, kind })), current: this.targetId });
     if (msg.t === 'attach') return this.attach(msg.id);
     if (msg.t === 'mode') return this.setMode(msg.mode);
-    if (msg.t === 'visible') { this.visible = Boolean(msg.v); return; }
+    if (msg.t === 'visible') {
+      this.visible = Boolean(msg.v);
+      if (this.targetId && this.visible) {
+        presenceHeartbeat(this.targetId, this.deviceId, deviceName(this.deviceId));
+        broadcastPresence(this.targetId);
+      }
+      return;
+    }
     if (msg.t === 'lang') { updateDevice(this.deviceId, { lang: msg.v === 'en' ? 'en' : 'zh' }); return; }
+    if (msg.t === 'claim') {
+      const win = String(msg.win || this.targetId || '');
+      if (!win) throw new Error('No window to claim');
+      const prev = presenceSnapshot(win);
+      presenceClaim(win, this.deviceId, deviceName(this.deviceId));
+      broadcastPresence(win);
+      if (prev.holder && prev.holder !== this.deviceId) {
+        for (const v of listViewers()) {
+          if (v.deviceId === prev.holder) v.emit({ t: 'status', ok: true, msg: `Control moved to ${deviceName(this.deviceId)}` });
+        }
+      }
+      return;
+    }
+    if (msg.t === 'presence') {
+      return this.emit({ t: 'presence', ...presenceSnapshot(this.targetId, this.deviceId) });
+    }
+    if (msg.t === 'dash') return this.sendDash();
     if (!this.cdp) throw new Error('Not connected to a Cursor window yet');
+    // Clipboard pull is read-only; push requires the control lock.
+    if (msg.t === 'clipboard' && msg.op === 'pull') return this.pullClipboard();
+    if (CONTROL_TYPES.has(msg.t) && this.targetId && !canControl(this.targetId, this.deviceId)) {
+      const snap = presenceSnapshot(this.targetId, this.deviceId);
+      this.emit({ t: 'presence', ...snap });
+      throw new Error(`${snap.holderName || 'Another device'} is controlling this window — tap Take control`);
+    }
+    if (CONTROL_TYPES.has(msg.t) && this.targetId) {
+      presenceHeartbeat(this.targetId, this.deviceId, deviceName(this.deviceId));
+    }
     switch (msg.t) {
       case 'openMenu': return this.openMenu(msg.kind);
       case 'pickMenu': return this.pickMenu(msg.kind, msg.label);
@@ -1239,6 +1363,8 @@ class Session {
       case 'pickParam': return this.pickParam(String(msg.model ?? ''), String(msg.label ?? ''), msg.section, msg.value);
       case 'newChat': return this.pressControl('newChat');
       case 'file': return this.openFile(String(msg.path ?? ''));
+      case 'diff': return this.openDiff(String(msg.path ?? msg.name ?? ''));
+      case 'clipboard': return this.pushClipboard(String(msg.text ?? ''));
       case 'click': return this.clickButton(msg.item, msg.n);
       case 'queue': return msg.action === 'edit' ? this.editQueued(msg.id, String(msg.text ?? '')) : this.queueAction(msg.id, msg.action);
       case 'stop': return this.stopAgent();
@@ -1268,6 +1394,7 @@ class Session {
   dispose() {
     clearInterval(this.idleTimer);
     clearTimeout(this.ackTimer);
+    releaseAllForDevice(this.deviceId);
     this.detach();
   }
 }
@@ -1340,7 +1467,7 @@ async function handleApi(req, res, route) {
     return json(req, res, 200, {
       ok: true,
       free: true,
-      version: '1.7.0',
+      version: '1.8.1',
       networkMode: NETWORK_MODE,
       host: HOST,
       port: PORT,
@@ -1349,6 +1476,8 @@ async function handleApi(req, res, route) {
       windows: wins.length,
       windowTitles: wins.map(w => w.title),
       devices: listDevices().length,
+      locks: allSnapshots(),
+      windowStates: watcherWindowStates(),
       appUrl: appBase() || '',
       relayUrl: st.relayUrl || '',
       telegram: telegramEnabled(),
@@ -1636,6 +1765,11 @@ server.listen(PORT, HOST, async () => {
           const r = await headless.stop(winId);
           console.log(`[telegram] Stop on ${r.title}`);
           return `Stopped agent in ${r.title}`;
+        }
+        if (action === 'continue') {
+          const r = await headless.sendPrompt(winId, 'Continue');
+          console.log(`[telegram] Continue → ${r.title}`);
+          return `Sent Continue to ${r.title}`;
         }
         const r = await headless.clickWait(winId, action);
         console.log(`[telegram] ${action} → ${r.label} on ${r.title}`);

@@ -24,7 +24,7 @@ function vapid() {
 }
 const keys = vapid();
 // Apple's push service rejects VAPID tokens without a mailto: or https: subject.
-webpush.setVapidDetails('https://github.com/Suchenl/cursor-remote-lite', keys.publicKey, keys.privateKey);
+webpush.setVapidDetails('https://github.com/edwardlthompson/cursor-remote-lite', keys.publicKey, keys.privateKey);
 export const pushPublicKey = () => keys.publicKey;
 
 /* ---------- who is listening / looking ---------- */
@@ -52,6 +52,7 @@ export function closeEventStreams(deviceId) {
 
 export const addViewer = v => viewers.add(v);
 export const removeViewer = v => viewers.delete(v);
+export const listViewers = () => [...viewers];
 
 const watching = (deviceId, targetId) => [...viewers].some(v => v.deviceId === deviceId && v.visible && v.targetId === targetId);
 const wanted = () => streams.size > 0 || listDevices().some(d => d.push) || telegramEnabled();
@@ -76,7 +77,10 @@ export async function deliver(event, onlyDevice = null) {
     windowTitle: en.windowTitle || readState().windowTitles?.[en.win] || '',
   });
   for (const d of listDevices()) {
-    if (onlyDevice ? d.id !== onlyDevice : watching(d.id, event.win)) continue;
+    // Skip alerts only for the window this device is actively viewing — except "done":
+    // finish alerts always fire (with sound on Android), matching desktop Cursor's completion chime.
+    if (onlyDevice ? d.id !== onlyDevice
+      : (event.kind !== 'done' && watching(d.id, event.win))) continue;
     const payload = JSON.stringify(d.lang === 'zh' && zh ? { ...en, ...zh } : en);
     for (const s of streams) if (s.deviceId === d.id) s.res.write(`data: ${payload}\n\n`);
     if (!d.push) continue;
@@ -100,6 +104,12 @@ export function watcherStats() {
 }
 
 let watchedCount = 0;
+/** Latest per-window busy/waiting snapshot for the tablet dashboard. */
+let windowStates = [];
+
+export function watcherWindowStates() {
+  return windowStates;
+}
 
 /* ---------- window watcher ---------- */
 
@@ -113,6 +123,10 @@ function check(win, w, s) {
   const first = !w.seen;
   w.seen = true;
   const name = windowName(win.title);
+  w.title = win.title;
+  w.name = name;
+  w.waitingText = s.waitingText || '';
+  w.last = s.last || '';
 
   if (s.waiting !== w.waiting) { w.waiting = s.waiting; w.waitPolls = 0; w.told = first; }
   if (s.waiting && !w.told && ++w.waitPolls >= WAIT_POLLS) {
@@ -159,6 +173,20 @@ export function startWatcher({ listWindows, openCdp, probe }) {
       } catch {}
     }));
     watchedCount = watched.size;
+    windowStates = wins.map(win => {
+      const w = watched.get(win.id);
+      let state = 'idle';
+      if (w?.waiting) state = 'waiting';
+      else if (w?.busy) state = 'running';
+      return {
+        id: win.id,
+        title: win.title,
+        name: w?.name || windowName(win.title),
+        state,
+        waitingText: w?.waitingText || '',
+        last: w?.last || '',
+      };
+    });
     try {
       saveState({
         watchedWindows: [...watched.keys()],

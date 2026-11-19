@@ -2,10 +2,11 @@
 
 # Cursor Remote Lite
 
-**电脑不用带在身边，也能正常干活。** 电脑留在家里或公司开着，出门只带手机，就能接着用电脑上的 Cursor：给 Agent 布置任务、看它干到哪了、回答它的提问、批准命令、检查改动的文件，本地窗口和 SSH 远程窗口都行。
-免费、开源、自托管，不需要服务器，也不需要手机和电脑在同一个 Wi-Fi。
+**电脑不用带在身边，也能正常干活。** 电脑留在家里或公司开着，用**手机或平板**继续驱动 Cursor：布置任务、完成后通知、回答提问、批准命令、看 diff、保留/撤销改动 — 本地与 SSH 窗口都行。
 
-> 灵感来自 [len5ky/CursorRemote](https://github.com/len5ky/CursorRemote)，这是一个从零实现的免费版本。
+**免费、MIT、自托管。** 无授权费。安卓原生 APK（可不依赖谷歌服务）、iPhone 主屏幕应用、Windows 托盘安装包 / Linux deb，以及可选 Telegram 与 Cursor 扩展。
+
+> 本仓库为 [Suchenl/cursor-remote-lite](https://github.com/Suchenl/cursor-remote-lite) 的 fork（上游灵感来自 [len5ky/CursorRemote](https://github.com/len5ky/CursorRemote)）。本 fork 保持免费，并增加托盘打包、平板仪表盘、剪贴板桥、多设备锁与更完整的通知。
 
 <p align="center"><img src="docs/quickstart.gif" width="300" alt="上手演示：预览文件、切换窗口、调模型参数、批准命令、运行中排队发消息、处理改动的文件"></p>
 
@@ -37,13 +38,13 @@
 
 ### 这个项目怎么做
 
-电脑上跑一个很小的中继，直接操作你电脑上真实的 Cursor；手机上是一个为手机重新设计的界面：
+电脑上跑一个很小的中继，直接操作真实的 Cursor；手机/平板是为触控设计的界面：
 
-- Agent 的对话像聊天 App 一样看，直接打字发消息，运行中发的消息自动排队。
-- Agent 等你点「运行」、或者用提问的方式问你问题时，手机弹通知，点开就能回答。
-- 改了哪些文件、加删了多少行，逐个保留或撤销；需要时还能切到实时画面。
-- 所有窗口都能用：本地、SSH 远程、Agents 窗口；模式、模型、思考强度随时换。
-- 代码和对话留在你自己的电脑上，不上传到任何云端 Agent；手机通过 Cloudflare 隧道（HTTPS）实时访问；安卓、iPhone 都能用，国内网络也能用。
+- 聊天式看 Agent；忙时消息自动排队。
+- **完成后横幅+铃声**，等待 Run/Allow 时也可 Approve / Skip / Stop / Continue / Reply。
+- **Diff 审阅**、Keep / Undo；剪贴板双向；平板横屏看多窗口状态。
+- 本地 / SSH / Agents 全覆盖；可选 Telegram 与 Cursor 扩展。
+- 代码与对话只在你电脑上；经 Cloudflare / 局域网访问；安卓与 iPhone、国内网络可用。
 
 ### 为什么安卓和 iPhone 都要支持
 
@@ -62,43 +63,47 @@
 
 ## 和其他方案的区别
 
-| | Cursor Remote Lite（本项目） | Cursor 官方 iOS App | len5ky/CursorRemote | 远程桌面 |
+| | **本 fork（Cursor Remote Lite）** | Cursor 官方 iOS App | len5ky/CursorRemote | 远程桌面 |
 |---|---|---|---|---|
-| 价格 | 免费 | 需要 Cursor 付费套餐 | $7.99/月 | 多数免费 / 付费 |
-| 许可证 | MIT 开源 | 闭源 | source-available | — |
-| 手机 | 安卓 App、iPhone、任意浏览器 | 仅 iPhone / iPad | 任意浏览器、Telegram | 各平台 App |
-| 能控制的窗口 | 所有窗口：本地、SSH 远程、Agents | 仅 Agents 窗口（Remote Control） | 本机窗口 | 整个桌面 |
-| 代码 / 对话经过哪里 | 只在你的电脑，经 Cloudflare 隧道（HTTPS）传到手机 | Agent 循环在 Cursor 云端 | 你的电脑 + 局域网 / Tailscale | 远程桌面厂商的服务器 |
-| 外网访问 | 自带，免配置；地址固定 | 自带 | 需自己配 Tailscale / Telegram | 自带 |
-| 手机上的体验 | 聊天界面 + 实时画面，文件预览 | 原生 App | 聊天界面 | 缩小的电脑屏幕 |
-| 完成 / 等确认时提醒 | ✅ App 内通知，不用装别的软件 | ✅ | 通过 Telegram | ❌ |
-| 电脑需要开着 | 需要（不能睡眠） | 云端 Agent 不需要；Remote Control 需要 | 需要 | 需要 |
+| 价格 | **永久免费** | 需 Cursor 付费套餐 | $7.99/月 | 免费 / 付费 |
+| 许可证 | **MIT 开源** | 闭源 | source-available | — |
+| 安卓 | **原生 APK**（可不依赖谷歌） | ❌ | 浏览器 / Telegram | 厂商 App |
+| iPhone | 添加到主屏幕（PWA） | 原生（iOS 26+） | 浏览器 / Telegram | 厂商 App |
+| 能控制的窗口 | **全部**：本地、SSH、Agents | 仅 Agents（Remote Control） | 主要本机 | 整个桌面 |
+| 代码 / 对话 | **只在你的电脑**（隧道到手机） | Agent 常在 Cursor 云端 | 电脑 + 局域网 / Tailscale | 厂商服务器 |
+| 外网访问 | 自带 Cloudflare 隧道 + 固定 Pages 地址 | 自带 | 需自配 Tailscale / Telegram | 自带 |
+| 手机体验 | 聊天 + 画面 + **diff** + 剪贴板 + **平板仪表盘** | 原生 Agents | 聊天 UI | 缩小桌面 |
+| 完成 / 等待提醒 | **安卓横幅+铃声**；Web Push；Telegram 操作 | ✅ | Telegram | ❌ |
+| 多设备（手机+平板） | **每窗口控制锁** | — | — | 共享桌面 |
+| 电脑端打包 | **Win 托盘 EXE/MSI**、Linux deb、macOS、VSIX | — | — | — |
+| Telegram | 可选、免费、按窗口话题 | — | 可选 | — |
+| 电脑需常开 | 需要 | 云端 Agent 否；Remote Control 是 | 需要 | 需要 |
 
-**本项目的不足**，也写在这里：
+**不足**（写在前面）：
 
-- 靠读取 Cursor 的界面实现，Cursor 大改版后可能需要跟着更新。
-- 后台服务目前只支持 macOS；Windows 上用 `start-cursor.ps1` 启动 Cursor，服务需要手动开着（见下文）。
-- 免费的 Cloudflare 快速隧道没有可用性保证，偶尔会断开重连。
+- 依赖 Cursor UI / CDP，大改版可能要跟着更新。
+- macOS 有 launchd；Windows 用**系统托盘 EXE**（开机自启），不是经典服务。
+- Cloudflare 免费快速隧道可能短暂断线重连。
 
 ## 功能
 
 - **聊天模式**：像聊天 App 一样看 Agent 对话（气泡、工具调用卡片、思考过程），直接输入发送，Agent 停下来等你确认时，按钮会出现在手机上。
 - **文件预览**：对话里出现的文件名（蓝色）、带 📄 的工具卡片，点一下就能全屏查看文件内容，带行号；图片直接显示。SSH 远程窗口的文件通过 `ssh` 读取（要求电脑能免密 ssh 到那台机器，用 Cursor 连 SSH 的电脑一般都已配置好）。
 - **屏幕模式**：实时画面，可以只看聊天面板或整个窗口，点按 / 滚动 / 缩放 / 常用按键都会传到电脑上。
-- **通知**：Agent 跑完、或停下来等你点「运行 / 允许」时，手机弹通知，点一下直接打开那个窗口。所有窗口都会提醒，正在手机上看的那个窗口不重复提醒。
-- **多窗口**：点左上角窗口名切换窗口，SSH 远程窗口、Agents 窗口都能选。
-- **模式 / 模型 / 历史对话**：手机上直接切 Agent / Plan / Ask，换模型，打开历史对话，新建对话。
-- **模型参数**：模型列表里点「参数」可以调上下文长度（如 300K / 1M）、思考强度（Low → Max）、Fast 开关；顶部还有 MAX Mode 开关。能调哪些由 Cursor 对这个模型提供什么决定。
-- **回答 Agent 的提问**：Agent 用提问的方式问你问题时（单选、多个问题、或者自己写答案），手机上会出现「Agent 在问你」卡片，点选项或写上答案再提交，也可以跳过；通知里直接显示问题内容。
-- **排队消息**：Agent 正在跑时发的消息会进 Cursor 的排队列表，手机上会显示「Agent 正在运行」和排队中的每一条，可以修改、立即发送（打断当前这一轮）或删除，也可以一键停止 Agent。
-- **子 Agent**：Agent 派出的子 Agent 正在跑时，手机上会显示「子 Agent 运行中 N 个」（默认收起，点开才列出），点「查看」可以看它自己的对话过程（只读），也可以单独停止它。
-- **改动的文件**：Agent 改过文件后，输入框上方会出现「改动了 N 个文件 ›」，点开能看到每个文件加了 / 删了多少行，点文件名看内容，也可以逐个「保留」或「撤销」，和桌面上的 Keep / Undo 一样。
-- **发图片**：输入框旁的图片按钮，选一张照片或截图（比如手机拍的报错画面），会附加到 Cursor 的输入框里，再写上文字一起发出去。大图会先在手机上压缩。
-- **防误触**：停止 Agent、停止子 Agent、撤销改动、删除排队消息、拒绝、移除设备、取消配对这类不可逆的操作，都会先弹出确认。
-- **语音输入（默认关闭）**：输入法键盘上的麦克风就能语音输入，所以默认不显示麦克风按钮。需要的话在「⋯ → 语音按钮」里打开：安卓 App 调用系统语音识别，iPhone / 浏览器用浏览器自带的语音识别。
-- **中文 / English**：默认跟随手机系统语言，也可以在「⋯ → 语言 / Language」里切换；通知内容也会跟着变。
-- **设备配对**：不用密码。电脑上生成一次性二维码，手机扫一下就配对好了；可选 Authenticator 二次验证。
-- **固定地址**：App 放在你自己的 GitHub Pages 上，电脑重启、隧道地址变化都不用重新配对。
+- **通知 + 铃声**：安卓「已完成 / 等你确认」高优先级通道（横幅+震动+系统提示音）；可从通知栏 Continue / Reply / Approve / Skip / Stop。**跑完**即使正在看该窗口也会提醒。
+- **快捷提示词**：输入框上方芯片（Continue、修测试…），长按删除，`+` 添加，保存在本机。
+- **Diff 审阅**：从「改动了 N 个文件」点进统一 diff，再 Keep / Undo。
+- **剪贴板桥**：手机剪贴板粘贴进 Cursor；或从桌面选区 / 最后一个代码块拷回手机。
+- **多设备锁**：手机+平板不同时抢 Approve；横幅「Take control」（约 90 秒空闲释放）。
+- **平板横屏仪表盘**（宽边 ≥900px）：各窗口状态条（空闲/运行/等待）+ 改动文件侧栏。
+- **Windows 托盘**：EXE/MSI 托盘常驻、开机自启、防休眠、ADB 配对、退出即停中继。
+- **Telegram（可选）**：论坛群按窗口建话题（`/sync`）；完成/等待内联按钮。见 [docs/TELEGRAM.md](docs/TELEGRAM.md)。
+- **Cursor 扩展**：安装面板、状态、网络模式（tunnel / lan / localhost）。见 [docs/EXTENSION.md](docs/EXTENSION.md)。
+- **多窗口**：点左上角切换本地 / SSH / Agents。
+- **模式 / 模型 / 历史**：Agent / Plan / Ask、参数、History、新建。
+- **提问卡片 / 排队 / 子 Agent / 改动文件 / 发图 / 防误触 / 语音**：与上游一致。
+- **设备配对 + 固定 Pages 地址**：二维码 / 深链；可选 TOTP；隧道变了也不用重配对。
+- **ADB 自动配对**：EXE/deb 旁放 APK 且手机已连 ADB 时可自动安装并打开配对。
 
 ## 原理
 
@@ -110,17 +115,17 @@ Cursor 基于 Electron，用 `--remote-debugging-port` 启动后，中继通过 
 
 ## 要求
 
-- macOS（Windows / Linux 上 `server.mjs` 也能跑，但后台服务脚本只支持 macOS，Windows 用法见下文「Windows」）
-- Node.js 22+
-- [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)：外网访问，`brew install cloudflared`
-- [GitHub CLI](https://cli.github.com/)：固定地址，`brew install gh`
+- **电脑**：Windows / Linux / macOS，**Node.js 22+**
+- **外网**：[cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)（Win/Linux 安装包已打包）
+- **固定手机地址**：[GitHub CLI](https://cli.github.com/) 已登录
+- **更省事**：直接从 [Releases](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest) 下 Windows EXE/MSI、Linux deb、Android APK
 
 ## 快速上手（5 分钟）
 
 **第 1 步：在电脑上安装**
 
 ```bash
-git clone https://github.com/Suchenl/cursor-remote-lite.git
+git clone https://github.com/edwardlthompson/cursor-remote-lite.git
 cd cursor-remote-lite
 npm install
 npm run setup        # 创建手机 App 仓库、设置开机自启，可选开启二次验证
@@ -143,7 +148,7 @@ npm run pair
 **第 3 步：装到手机上（可选，但推荐）**
 
 - **iPhone**：Safari 打开后 → 分享 → 添加到主屏幕
-- **Android**：下载 [CursorRemote.apk](https://github.com/Suchenl/cursor-remote-lite/releases/latest/download/CursorRemote.apk) 安装，然后用手机扫配对码，浏览器会提示「在 App 中打开」，点一下就配对进 App 了（配对码用过了就再运行一次 `npm run pair`）。
+- **Android**：下载 [CursorRemote.apk](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.apk) 安装，然后用手机扫配对码，浏览器会提示「在 App 中打开」，点一下就配对进 App 了（配对码用过了就再运行一次 `npm run pair`）。
   华为等没有谷歌服务的手机也能用（浏览器的「安装应用」在这些手机上通常不可用）。
   注意：纯血鸿蒙（HarmonyOS NEXT / 5.0 及以上）不能直接装 APK，需要先装「卓易通」。
 
@@ -284,20 +289,6 @@ GitHub Actions 只在作者发布新版 APK 时用到，用户这边不会运行
 
 **点文件提示找不到**：文件可能已被删除或移动；SSH 窗口的文件需要电脑能免密 `ssh` 到那台机器。
 
-## 赞赏
-
-觉得好用的话，可以请作者喝杯咖啡 ☕（完全自愿）
-
-| 微信 | 支付宝 |
-|---|---|
-| <img src="app/donate-wechat.jpg" width="220" alt="微信收款码"> | <img src="app/donate-alipay.jpg" width="220" alt="支付宝收款码"> |
-
-App 里「⋯ → 赞赏作者」显示的内容由 `app/donate.json` 控制，可以在 `links` 里加海外付款链接，例如：
-
-```json
-"links": [{ "label": "PayPal", "url": "https://paypal.me/你的用户名" }]
-```
-
 ## License
 
-MIT
+MIT。上游作者的版权声明保留在 [LICENSE](LICENSE)。本 fork 维护于 [edwardlthompson/cursor-remote-lite](https://github.com/edwardlthompson/cursor-remote-lite)。

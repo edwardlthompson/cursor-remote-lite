@@ -67,6 +67,16 @@ function waitingKeyboard(winId) {
   };
 }
 
+function doneKeyboard(winId) {
+  const id = String(winId || '').slice(0, 40);
+  return {
+    inline_keyboard: [[
+      { text: 'Continue', callback_data: `cont:${id}` },
+      { text: 'Reply', callback_data: `reply:${id}` },
+    ]],
+  };
+}
+
 /** Ensure a forum topic exists for this Cursor window; returns message_thread_id or null. */
 export async function ensureWindowTopic(winId, title) {
   if (!telegramEnabled() || !winId) return null;
@@ -145,6 +155,7 @@ export async function telegramNotify(event) {
   };
   if (threadId) payload.message_thread_id = threadId;
   if (event.kind === 'waiting' && win) payload.reply_markup = waitingKeyboard(win);
+  if (event.kind === 'done' && win) payload.reply_markup = doneKeyboard(win);
 
   try {
     await api(token, 'sendMessage', payload);
@@ -205,11 +216,19 @@ export function startTelegramBot(hooks = {}) {
           const cq = u.callback_query;
           const chatId = cq.message?.chat?.id;
           const data = String(cq.data || '');
-          const m = /^(ok|no|stop):(.+)$/.exec(data);
+          const m = /^(ok|no|stop|cont|reply):(.+)$/.exec(data);
           try { await api(token, 'answerCallbackQuery', { callback_query_id: cq.id }); } catch { /* */ }
           if (!m || !chatId) continue;
-          const action = m[1] === 'ok' ? 'approve' : m[1] === 'no' ? 'reject' : 'stop';
+          const action = m[1] === 'ok' ? 'approve'
+            : m[1] === 'no' ? 'reject'
+            : m[1] === 'cont' ? 'continue'
+            : m[1] === 'reply' ? 'reply'
+            : 'stop';
           const winId = m[2];
+          if (action === 'reply') {
+            await reply(chatId, 'Reply in this topic with your next prompt (plain text).', cq.message?.message_thread_id);
+            continue;
+          }
           if (typeof hooks.onAction !== 'function') {
             await reply(chatId, 'Relay has no CDP action hook yet.', cq.message?.message_thread_id);
             continue;
@@ -242,6 +261,7 @@ export function startTelegramBot(hooks = {}) {
           await reply(chatId,
             'Cursor Remote Lite linked.\n\n'
             + '• Waiting alerts: Approve / Skip / Stop\n'
+            + '• Done alerts: Continue / Reply\n'
             + '• Plain text → prompt Cursor\n'
             + '• In a forum group, each Cursor window gets its own topic (/sync)\n'
             + '• /status /sync\n'

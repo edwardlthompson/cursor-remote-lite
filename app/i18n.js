@@ -76,8 +76,6 @@ const I18N = (() => {
   "Remove": "移除",
   "Add a device: run npm run pair on the computer.": "添加新设备：在电脑上运行 npm run pair。",
   "Turn on Authenticator 2FA: npm run 2fa.": "开启 Authenticator 二次验证：npm run 2fa。",
-  "Support the author ☕": "赞赏作者 ☕",
-  "If you find it useful, you can buy the author a coffee. Entirely optional — thank you!": "觉得好用的话，可以请作者喝杯咖啡。完全自愿，感谢支持！",
   "Intl": "海外",
   "Long-press a QR code to save it, then scan it from your photos in WeChat / Alipay.": "手机上可以长按二维码保存，再用微信 / 支付宝「扫一扫」从相册识别。",
   "Notifications: on": "通知：已开启",

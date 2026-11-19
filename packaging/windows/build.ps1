@@ -3,7 +3,7 @@
 #   powershell -ExecutionPolicy Bypass -File .\packaging\windows\build.ps1 [-ApkPath path] [-Version 1.6.0]
 param(
   [string]$ApkPath = '',
-  [string]$Version = '1.6.0',
+  [string]$Version = '1.8.0',
   [switch]$SkipMsi
 )
 
@@ -45,7 +45,8 @@ Copy-Item -Recurse -Force (Join-Path $NodeExtracted '*') (Join-Path $Payload 'no
 # --- App files ---
 $copyFiles = @(
   'server.mjs', 'auth.mjs', 'devices.mjs', 'files.mjs', 'notify.mjs', 'setup.mjs', 'twofa.mjs',
-  'adb-pair.mjs', 'win-run.mjs', 'package.json', 'package-lock.json',
+  'adb-pair.mjs', 'win-run.mjs', 'headless.mjs', 'telegram.mjs', 'presence.mjs',
+  'package.json', 'package-lock.json',
   'start-cursor.ps1', 'setup-windows.ps1', 'LICENSE', 'README.md', 'README.en.md'
 )
 foreach ($f in $copyFiles) {
@@ -98,17 +99,20 @@ if (Test-Path $PortableZip) { Remove-Item $PortableZip -Force }
 Compress-Archive -Path (Join-Path $Payload '*') -DestinationPath $PortableZip
 Write-Host "Wrote $PortableZip"
 
-# --- Self-extracting CursorRemote.exe ---
+# --- Self-extracting CursorRemote.exe (tray host) ---
 $SetupDir = Join-Path $PSScriptRoot 'Setup'
+$TrayDir = Join-Path $PSScriptRoot 'TrayHost'
 New-Item -ItemType Directory -Force -Path $SetupDir | Out-Null
 
 $Csproj = Join-Path $SetupDir 'CursorRemote.Setup.csproj'
+$TrayAppSrc = (Join-Path $TrayDir 'TrayApp.cs').Replace('\', '\\')
 $ZipLiteral = $PortableZip.Replace('\', '\\')
 @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>CursorRemote</AssemblyName>
@@ -121,28 +125,23 @@ $ZipLiteral = $PortableZip.Replace('\', '\\')
     <DebugType>none</DebugType>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="$PortableZip" LogicalName="payload.zip" />
+    <EmbeddedResource Include="$ZipLiteral" LogicalName="payload.zip" />
+    <Compile Include="$TrayAppSrc" Link="TrayApp.cs" />
   </ItemGroup>
 </Project>
 "@ | Set-Content -Encoding UTF8 $Csproj
 
 @"
-using System.Diagnostics;
 using System.IO.Compression;
 using System.Reflection;
-using System.Runtime.InteropServices;
 
 internal static class Program
 {
-    [DllImport("kernel32.dll")]
-    private static extern bool AllocConsole();
-
-    private static int Main(string[] args)
+    private static int Main()
     {
-        AllocConsole();
-        Console.Title = "Cursor Remote";
-
-        var target = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CursorRemoteLite");
+        var target = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "CursorRemoteLite");
         Directory.CreateDirectory(target);
         var stamp = Path.Combine(target, ".version");
         const string want = "$Version";
@@ -152,6 +151,7 @@ internal static class Program
 
         if (needExtract)
         {
+            AllocConsoleSafe();
             Console.WriteLine("Extracting Cursor Remote $Version…");
             using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip")
                 ?? throw new InvalidOperationException("Embedded payload.zip missing");
@@ -184,38 +184,21 @@ internal static class Program
                 Environment.SetEnvironmentVariable("CURSOR_REMOTE_APK", bundled);
         }
 
-        var node = Path.Combine(target, "node", "node.exe");
-        var entry = Path.Combine(target, "win-run.mjs");
-        if (!File.Exists(node) || !File.Exists(entry))
-        {
-            Console.Error.WriteLine("Install payload incomplete under " + target);
-            Console.WriteLine("Press Enter to close…");
-            Console.ReadLine();
-            return 1;
-        }
+        return TrayApp.Run(target);
+    }
 
-        var psi = new ProcessStartInfo
-        {
-            FileName = node,
-            Arguments = "\"" + entry.Replace("\"", "\\\"") + "\"",
-            WorkingDirectory = target,
-            UseShellExecute = false,
-        };
-        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? "";
-        psi.Environment["PATH"] = Path.Combine(target, "node") + Path.PathSeparator
-            + Path.Combine(target, "tools") + Path.PathSeparator
-            + pathEnv;
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool AllocConsole();
 
-        using var p = Process.Start(psi);
-        if (p is null) return 1;
-        p.WaitForExit();
-        return p.ExitCode;
+    private static void AllocConsoleSafe()
+    {
+        try { AllocConsole(); } catch { }
     }
 }
 "@ | Set-Content -Encoding UTF8 (Join-Path $SetupDir 'Program.cs')
 
 $SetupOut = Join-Path $Out 'setup-build'
-Write-Host 'Publishing self-extracting CursorRemote.exe…'
+Write-Host 'Publishing self-extracting CursorRemote.exe (tray)…'
 dotnet publish $Csproj -c Release -r win-x64 --self-contained true -p:Version=$Version -o $SetupOut
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
 $ExePath = Join-Path $Out 'CursorRemote.exe'
@@ -244,6 +227,7 @@ if (-not $SkipMsi) {
     <Feature Id="Main" Title="Cursor Remote" Level="1">
       <ComponentRef Id="MainExe" />
       <ComponentRef Id="AppShortcut" />
+      <ComponentRef Id="AutostartHint" />
     </Feature>
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="Cursor Remote Lite" />
@@ -262,6 +246,13 @@ if (-not $SkipMsi) {
                   Target="[INSTALLFOLDER]CursorRemote.exe" WorkingDirectory="INSTALLFOLDER" />
         <RemoveFolder Id="RemoveAppMenu" Directory="AppMenu" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\CursorRemoteLite" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+    <!-- First-run tray also writes this; MSI seeds Start-with-Windows so reboot keeps the relay. -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="AutostartHint" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567891">
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                       Name="CursorRemoteLite" Type="string" Value="&quot;[INSTALLFOLDER]CursorRemote.exe&quot;" KeyPath="yes" />
       </Component>
     </DirectoryRef>
   </Package>

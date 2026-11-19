@@ -1,11 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>CursorRemote</AssemblyName>
-    <Version>1.7.0</Version>
+    <Version>1.8.0</Version>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -14,6 +15,6 @@
     <DebugType>none</DebugType>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="C:\Users\edwar\cursor-remote-lite\packaging\out\CursorRemote-1.7.0-win-x64.zip" LogicalName="payload.zip" />
+    <Compile Include="..\TrayHost\TrayApp.cs" Link="TrayApp.cs" />
   </ItemGroup>
 </Project>

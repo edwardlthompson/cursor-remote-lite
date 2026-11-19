@@ -25,7 +25,8 @@ cp -a "$OUT/node-$NODE_VER-linux-x64/." "$PAYLOAD/node/"
 
 echo "Copying app files…"
 for f in server.mjs auth.mjs devices.mjs files.mjs notify.mjs setup.mjs twofa.mjs \
-         adb-pair.mjs linux-run.mjs win-run.mjs package.json package-lock.json \
+         adb-pair.mjs linux-run.mjs win-run.mjs headless.mjs telegram.mjs presence.mjs \
+         package.json package-lock.json \
          start-cursor.sh start-cursor.ps1 setup-windows.ps1 LICENSE README.md README.en.md; do
   [[ -f "$ROOT/$f" ]] && cp -a "$ROOT/$f" "$PAYLOAD/"
 done

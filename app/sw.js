@@ -1,5 +1,5 @@
 // Caches the app shell so the installed app opens instantly; live data (url.json, relay) always goes to the network.
-const CACHE = 'cursor-remote-v7';
+const CACHE = 'cursor-remote-v8';
 const SHELL = ['./', 'index.html', 'i18n.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -29,27 +29,42 @@ self.addEventListener('fetch', e => {
 function showPush(text) {
   let d = {};
   try { d = JSON.parse(text); } catch {}
+  const win = d.win || '';
+  const actions = [];
+  if (d.kind === 'waiting') {
+    actions.push({ action: 'approve', title: 'Approve' }, { action: 'skip', title: 'Skip' }, { action: 'stop', title: 'Stop' });
+  } else if (d.kind === 'done') {
+    actions.push({ action: 'continue', title: 'Continue' }, { action: 'reply', title: 'Reply' });
+  }
   return self.registration.showNotification(d.title || 'Cursor Remote', {
     body: d.body || '',
-    tag: d.win || 'cursor-remote',
+    tag: win || 'cursor-remote',
     renotify: true,
     icon: 'icon-192.png',
     badge: 'icon-192.png',
-    data: { win: d.win || '' },
+    data: { win, kind: d.kind || '' },
+    actions,
   });
 }
 self.addEventListener('push', e => e.waitUntil(showPush(e.data ? e.data.text() : '')));
 
-// Tapping a notification opens the app on the window it came from.
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const win = e.notification.data?.win || '';
+  const action = e.action || '';
+  const hash = win ? '#win=' + encodeURIComponent(win) : '';
+  const extra = action === 'reply' ? (hash ? hash + '&reply=1' : '#reply=1')
+    : action === 'continue' ? (hash ? hash + '&continue=1' : '#continue=1')
+    : action === 'approve' ? (hash ? hash + '&approve=1' : '#approve=1')
+    : action === 'skip' ? (hash ? hash + '&skip=1' : '#skip=1')
+    : action === 'stop' ? (hash ? hash + '&stop=1' : '#stop=1')
+    : (hash || '');
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
     const client = list[0];
     if (client) {
-      client.postMessage({ openWin: win });
+      client.postMessage({ openWin: win, notifAction: action || '' });
       return client.focus();
     }
-    return self.clients.openWindow('./' + (win ? '#win=' + encodeURIComponent(win) : ''));
+    return self.clients.openWindow('./' + (extra || ''));
   }));
 });

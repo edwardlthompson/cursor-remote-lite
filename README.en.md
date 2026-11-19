@@ -2,10 +2,11 @@
 
 # Cursor Remote Lite
 
-**Leave your laptop behind and keep working.** Your computer stays on at home or at the office; with just your phone you keep using the Cursor on it: give the Agent tasks, check its progress, answer its questions, approve commands, and review the files it changed, in local and SSH remote windows alike.
-Free, open source and self-hosted. No server needed, and your phone doesn't have to be on the same Wi-Fi as your computer.
+**Leave your laptop behind and keep working.** Your computer stays on at home or at the office; with your **phone or tablet** you keep driving Cursor: give the Agent tasks, get notified when it finishes, answer questions, approve commands, review diffs, and keep or undo changed files — in local and SSH remote windows alike.
 
-> Inspired by [len5ky/CursorRemote](https://github.com/len5ky/CursorRemote); this is a free version written from scratch.
+**Free, MIT, self-hosted.** No license key, no cloud Agent relay. Works on Android (native APK, no Google services required), iPhone (Add to Home Screen), Windows / Linux / macOS for the PC side, plus optional Telegram and a Cursor/VS Code extension.
+
+> Fork of [Suchenl/cursor-remote-lite](https://github.com/Suchenl/cursor-remote-lite) (itself inspired by [len5ky/CursorRemote](https://github.com/len5ky/CursorRemote)). This fork stays free and adds tray packaging, tablet dashboard, clipboard bridge, multi-device lock, and richer alerts.
 
 <p align="center"><img src="docs/en/quickstart.gif" width="300" alt="Demo: preview a file, switch windows, adjust model parameters, approve a command, queue a message while the Agent runs, handle changed files"></p>
 
@@ -37,13 +38,15 @@ Meanwhile the Agent finishes a turn and waits for you to check it; stops to wait
 
 ### What this project does
 
-A tiny relay on your computer drives the real Cursor running there, and your phone gets an interface designed for phones:
+A tiny relay on your computer drives the real Cursor running there, and your phone/tablet gets a mobile UI:
 
-- Read the Agent conversation like a chat app and type messages directly; messages sent while it's busy are queued automatically.
-- When the Agent waits for you to tap "Run" or asks you a question, your phone gets a notification and you answer right there.
-- See which files changed and how many lines, keep or undo each one; switch to a live screen view when needed.
+- Read the Agent conversation like a chat app; messages sent while it's busy are queued automatically.
+- **Heads-up notifications with sound** when a turn finishes or when Run/Allow is waiting — Approve / Skip / Stop / Continue / Reply from the notification.
+- Review **git diffs**, Keep / Undo per file; paste phone clipboard into Cursor or pull a selection / code block back.
+- **Tablet landscape dashboard**: status strip for every window (idle / running / waiting) plus a changed-files side panel.
 - Every window works: local, SSH remote, Agents; switch mode, model and reasoning effort anytime.
-- Your code and conversations stay on your own computer and are never handed to a cloud Agent; your phone reaches it in real time through a Cloudflare tunnel (HTTPS). Works on Android and iPhone, including on networks in mainland China.
+- Optional **Telegram** (forum topics per window) and a free **Cursor extension** for setup/status.
+- Your code and chats stay on your computer; the phone reaches them over a Cloudflare tunnel (HTTPS), LAN, or localhost. Works on Android and iPhone, including networks in mainland China.
 
 ### Why support both Android and iPhone
 
@@ -62,43 +65,58 @@ So this project provides both: an Android app that installs without Google servi
 
 ## How it compares
 
-| | Cursor Remote Lite (this project) | Cursor official iOS app | len5ky/CursorRemote | Remote desktop |
+| | **This fork (Cursor Remote Lite)** | Cursor official iOS app | len5ky/CursorRemote | Remote desktop |
 |---|---|---|---|---|
-| Price | Free | Requires a paid Cursor plan | $7.99/month | Mostly free / paid |
-| License | MIT open source | Closed source | source-available | — |
-| Phones | Android app, iPhone, any browser | iPhone / iPad only | Any browser, Telegram | Apps for each platform |
-| Windows it can control | All windows: local, SSH remote, Agents | Agents window only (Remote Control) | Local windows | The whole desktop |
-| Where your code / chats go | Only on your computer, sent to your phone through a Cloudflare tunnel (HTTPS) | Agent loop runs in Cursor's cloud | Your computer + LAN / Tailscale | The remote desktop vendor's servers |
-| Access from outside your network | Built in, no setup; fixed address | Built in | Set up Tailscale / Telegram yourself | Built in |
-| Experience on the phone | Chat UI + live screen, file preview | Native app | Chat UI | Shrunken desktop screen |
-| Alerts when done / waiting for approval | ✅ In-app notifications, nothing else to install | ✅ | Via Telegram | ❌ |
-| Computer must stay on | Yes (no sleep) | Not for cloud Agents; yes for Remote Control | Yes | Yes |
+| Price | **Free forever** | Paid Cursor plan | $7.99/month | Free / paid |
+| License | **MIT open source** | Closed | Source-available | — |
+| Android | **Native APK** (no Google services) | ❌ | Browser / Telegram | Vendor app |
+| iPhone | Add to Home Screen (PWA) | Native (iOS 26+) | Browser / Telegram | Vendor app |
+| Windows it controls | **All**: local, SSH, Agents | Agents only (Remote Control) | Mostly local | Whole desktop |
+| Where code / chats live | **Only on your PC** (tunnel to your phone) | Agent loop often in Cursor cloud | Your PC + LAN / Tailscale | Vendor servers |
+| Away-from-home access | Built-in Cloudflare tunnel + fixed Pages address | Built in | DIY Tailscale / Telegram | Built in |
+| Phone UX | Chat + screen + **diffs** + clipboard + **tablet dashboard** | Native Agents UI | Chat UI | Tiny desktop |
+| Done / waiting alerts | **Android heads-up + sound**; Web Push; Telegram actions | ✅ | Telegram | ❌ |
+| Multi-device (phone + tablet) | **Control lock** per window | — | — | Shared desktop |
+| PC packaging | **Win tray EXE/MSI**, Linux deb, macOS service, Cursor VSIX | — | — | — |
+| Telegram | Optional, free, forum topics / window | — | Optional | — |
+| Computer must stay awake | Yes | Cloud Agents: no; Remote Control: yes | Yes | Yes |
 
-**This project's limitations**, stated up front:
+**Limitations** (stated up front):
 
-- It works by reading Cursor's UI, so a major Cursor redesign may require an update.
-- The background service currently supports macOS only; on Windows, start Cursor with `start-cursor.ps1` and keep the relay running by hand (see below).
-- Cloudflare's free quick tunnels come with no availability guarantee and occasionally disconnect and reconnect.
+- Relies on Cursor’s UI via CDP — a major Cursor redesign may need a relay update.
+- macOS still has the nicest launchd install; Windows uses the **system-tray EXE** (Start with Windows) instead of a classic service.
+- Cloudflare free quick tunnels can briefly disconnect and reconnect.
 
 ## Features
 
-- **Chat mode**: read Agent conversations like a chat app (bubbles, tool-call cards, thinking), type and send directly. When the Agent stops to wait for your approval, the buttons appear on your phone.
-- **File preview**: tap a file name in the conversation (shown in blue) or a tool card marked 📄 to view the file full screen with line numbers; images are displayed directly. Files in SSH remote windows are read via `ssh` (your computer needs passwordless ssh to that machine; if you already use Cursor over SSH, this is usually set up).
-- **Screen mode**: a live view of either just the chat panel or the whole window. Taps, scrolling, zooming and common keys are all sent to the computer.
-- **Notifications**: when an Agent finishes, or stops waiting for you to tap "Run / Allow", your phone gets a notification; tap it to jump straight to that window. All windows trigger alerts, except the one you're currently viewing on your phone.
-- **Multiple windows**: tap the window name in the top-left to switch windows, including SSH remote windows and the Agents window.
-- **Modes / models / chat history**: switch between Agent / Plan / Ask, change models, open past conversations and start new ones, right from your phone.
-- **Model parameters**: tap "Parameters" in the model list to adjust context length (e.g. 300K / 1M), reasoning effort (Low → Max) and the Fast toggle; there's also a MAX Mode toggle at the top. Which options are available depends on what Cursor offers for that model.
-- **Answer the Agent's questions**: when the Agent asks you something through its question prompt (multiple choice, several questions, or a free-text answer), a "The Agent is asking you" card appears on your phone; tap an option or write your own answer and submit, or skip. The notification shows the question itself.
-- **Queued messages**: messages sent while the Agent is running go into Cursor's queue. Your phone shows "Agent is running" plus each queued message, which you can edit, send immediately (interrupting the current turn) or delete. You can also stop the Agent with one tap.
-- **Sub-agents**: while sub-agents spawned by the Agent are running, your phone shows "Subagents running: N" (collapsed by default; tap to expand the list). Tap "View" to see a sub-agent's own conversation (read-only), or stop it individually.
-- **Changed files**: after the Agent edits files, "N files changed ›" appears above the input box. Tap it to see lines added / removed per file, tap a file name to view it, and Keep or Undo each file, just like Keep / Undo on the desktop.
-- **Send images**: the image button next to the input box attaches a photo or screenshot (say, a picture of an error on another screen) to Cursor's input box, so you can send it along with your message. Large images are compressed on the phone first.
-- **Confirmation for risky actions**: stopping the Agent or a sub-agent, undoing changes, deleting queued messages, rejecting, removing a device and unpairing all ask for confirmation first.
-- **Voice input (off by default)**: your keyboard's microphone already does dictation, so the microphone button is hidden by default. Turn it on under "⋯ → Voice button": the Android app uses the system speech recognizer; iPhone / browsers use the browser's built-in speech recognition.
-- **English / 中文**: English by default for non-Chinese system languages; switch anytime under "⋯ → 语言 / Language". Notifications follow the chosen language too.
-- **Device pairing**: no passwords. Your computer generates a one-time QR code, you scan it with your phone, and you're paired; optional Authenticator two-factor verification.
-- **Fixed address**: the app is hosted on your own GitHub Pages, so you don't need to re-pair when your computer restarts or the tunnel address changes.
+### Core remote control
+- **Chat mode**: Agent conversations as a chat app (bubbles, tool cards, thinking); approval buttons appear on the phone when Cursor waits.
+- **File preview**: tap a blue file name or 📄 tool card for a full-screen preview (SSH files via passwordless `ssh` from your PC).
+- **Screen mode**: live view of the chat panel or whole window; tap, scroll, zoom, common keys.
+- **Multiple windows**: switch local / SSH / Agents from the title control.
+- **Modes / models / history**: Agent / Plan / Ask, model picker, parameters (context, reasoning, Fast, MAX), History, New chat.
+- **Agent questions**: questionnaire cards (multiple choice / free text) with Skip / Submit; notifications include the question.
+- **Queue & sub-agents**: queue while busy (edit / send now / delete); list and stop sub-agents; stop the main Agent with confirmation.
+- **Changed files**: line add/del counts, Keep / Undo (with confirm on Undo), Keep All / Undo All when Cursor offers them.
+- **Images**: attach a photo/screenshot into Cursor’s composer (compressed on device).
+- **Voice input** (opt-in): Android system recognizer or browser speech API.
+- **English / 中文**: UI + notification language under **⋯ → 语言 / Language**.
+
+### Away-faster (this fork)
+- **Notifications + sound**: Android heads-up channels for **Finished** and **Needs your OK**, with Continue / Reply / Approve / Skip / Stop actions; Web Push and Telegram too. Finished alerts fire even if that window is open on the phone.
+- **Quick prompts**: chips above the composer (Continue, Fix tests, …); long-press to delete, `+` to add; stored on the device.
+- **Diff review**: tap a changed file for a unified git diff, then Keep / Undo / prev-next.
+- **Clipboard bridge**: paste phone clipboard → Cursor composer; pull selection or last code block → phone.
+- **Multi-device lock**: phone + tablet won’t double-Approve; banner + **Take control** (90s idle TTL).
+- **Tablet landscape dashboard** (≥900px landscape): window status strip (idle / running / waiting) + changed-files side panel.
+- **Windows tray**: `CursorRemote.exe` / MSI runs in the system tray with Start with Windows, keep-awake, ADB pair, Quit (stops relay).
+- **Telegram** (optional): forum topic per Cursor window (`/sync`); waiting/done inline actions. See [docs/TELEGRAM.md](docs/TELEGRAM.md).
+- **Cursor / VS Code extension**: setup panel, status, network modes (tunnel / lan / localhost). See [docs/EXTENSION.md](docs/EXTENSION.md).
+
+### Trust & access
+- **Device pairing**: one-time QR / deep link; optional TOTP 2FA; hashed tokens only on the PC.
+- **Fixed address**: your own GitHub Pages app + encrypted `url.json` — tunnel URL can change without re-pairing.
+- **ADB auto-pair**: EXE/deb can install the APK and open the pairing deep link when a device is connected.
 
 ## How it works
 
@@ -112,17 +130,17 @@ Cursor is built on Electron. When started with `--remote-debugging-port`, the re
 
 ## Requirements
 
-- macOS (`server.mjs` also runs on Windows / Linux, but the background service script only supports macOS; see "Windows" below for Windows usage)
-- Node.js 22+
-- [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/): for access from outside your network, `brew install cloudflared`
-- [GitHub CLI](https://cli.github.com/): for the fixed address, `brew install gh`
+- **PC**: Windows, Linux, or macOS with **Node.js 22+**
+- **Away-from-home**: [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) (bundled in Win/Linux packages)
+- **Fixed phone URL**: [GitHub CLI](https://cli.github.com/) (`gh`) logged in, for Pages setup
+- **Easiest path**: download the prebuilt **Windows EXE/MSI**, **Linux .deb**, and **Android APK** from [Releases](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest) instead of running from source
 
 ## Quick start (5 minutes)
 
 **Step 1: Install on your computer**
 
 ```bash
-git clone https://github.com/Suchenl/cursor-remote-lite.git
+git clone https://github.com/edwardlthompson/cursor-remote-lite.git
 cd cursor-remote-lite
 npm install
 npm run setup        # create the phone app repo, enable start at login, optionally enable 2FA
@@ -152,16 +170,18 @@ If you can't scan it, send the link shown below the QR code to your phone and op
 
 <p align="center"><img src="docs/en/ui-pair.png" width="220" alt="Screen shown before pairing"></p>
 
-**Step 3: Install it on your phone (optional, but recommended)**
+**Step 3: Packages (recommended instead of babysitting a terminal)**
 
-- **iPhone**: open it in Safari → Share → Add to Home Screen
-- **Windows (recommended)**: download [CursorRemote.exe](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.exe) or [CursorRemote.msi](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.msi). On first run it sets up the relay; if a phone is connected over ADB and/or `CursorRemote.apk` is in the same folder, it installs the app and opens pairing automatically.
-- **Linux (Mint / Ubuntu)**: download [CursorRemote-linux-x64.deb](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-linux-x64.deb) (`sudo apt install ./CursorRemote-linux-x64.deb`) or the [tar.gz](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-1.6.0-linux-x64.tar.gz), then run `cursor-remote`. Same ADB auto-pair behavior as Windows.
-- **Cursor extension (free)**: download [cursor-remote-lite.vsix](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/cursor-remote-lite.vsix) (`cursor --install-extension cursor-remote-lite.vsix`) or `npm run ext:package`. Setup panel + sidebar. Network: tunnel / lan / localhost.
-- **Telegram (optional, free)**: set `TELEGRAM_BOT_TOKEN`, start the relay, `/start` the bot. Forum groups get a topic per Cursor window (`/sync`). Waiting alerts include Approve / Skip / Stop. See [docs/TELEGRAM.md](docs/TELEGRAM.md).
-- **Android**: download and install [CursorRemote.apk](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.apk) (app name: **Cursor Remote**), then scan the pairing code — or use EXE/MSI auto-pair over ADB as above.
-  Works on Huawei and other phones without Google services (the browser's "Install app" option usually isn't available on these phones).
-  Note: pure HarmonyOS (HarmonyOS NEXT / 5.0 and later) can't install APKs directly; install "Zhuoyitong" (卓易通) first.
+| Platform | Download |
+|---|---|
+| **Windows** | [CursorRemote.exe](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.exe) / [CursorRemote.msi](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.msi) — **system tray**, Start with Windows, keep-awake, ADB auto-pair |
+| **Linux** | [CursorRemote-linux-x64.deb](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-linux-x64.deb) or [tar.gz](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-1.8.1-linux-x64.tar.gz) → `cursor-remote` |
+| **Android** | [CursorRemote.apk](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.apk) — no Google services required (Huawei OK). HarmonyOS NEXT needs Zhuoyitong before APKs. |
+| **iPhone** | Open the Pages URL in Safari → Share → **Add to Home Screen** |
+| **Cursor extension** | [cursor-remote-lite.vsix](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/cursor-remote-lite.vsix) |
+| **Telegram** (optional) | `TELEGRAM_BOT_TOKEN` + `/start`; forum `/sync` for per-window topics — [docs/TELEGRAM.md](docs/TELEGRAM.md) |
+
+If an Android phone is on USB/Wi‑Fi ADB and the APK sits next to the EXE/deb, first run can **install + open pairing** automatically.
 
 **Step 4: Start using it**
 
@@ -176,21 +196,32 @@ From now on, Cursor must always be started with the debugging port; just launch 
 
 ## Notifications
 
-In the app, tap "⋯ → Enable notifications", then tap "Send a test notification" to confirm it works.
+**Goal:** when the Agent finishes a turn (or waits for Run/Allow), your phone shows a heads-up Android notification and plays a sound — similar to Cursor’s desktop popup + chime.
+
+### Turn it on (Android app)
+
+1. Open **Cursor Remote** → **⋯ → Turn on notifications** (allow the system permission if asked).
+2. Tap **⋯ → Send a test notification**. You should get a heads-up banner **and** a sound.
+3. Leave a quiet “Cursor Remote is listening…” notification in the shade (required so Android keeps the connection alive).
+4. **Samsung / Xiaomi / Huawei / OPPO:** allow the app to run in the background (unrestricted battery; “Auto-run” / “App launch” → manage manually → allow).
+5. In **Settings → Apps → Cursor Remote → Notifications**, confirm **Agent finished** and **Agent needs your OK** are on, sound is on, and importance is High / Alerting (not Silent).
+
+We use the **system notification sound** (not Cursor’s proprietary desktop chime — that file isn’t redistributable). Pick any tone you like under those two channels.
+
+### When alerts fire
+
+| Event | What you get |
+|---|---|
+| **Finished** | Notification + sound whenever a turn ends (includes the start of the reply). Fires even if that window is open on the phone. |
+| **Waiting** | Notification + sound after ~10s on Run / Allow / Accept (auto-run flashes don’t count). Suppressed only for the window you’re actively viewing. |
 
 | Phone | How notifications arrive | Things to note |
 |---|---|---|
-| Android app | The app keeps its own background connection to your computer, without Google services, so it works on Huawei too | A persistent "Waiting for Agent messages" notification stays in the notification bar (required by Android). On Huawei / Xiaomi etc., allow background activity: on Huawei, go to "Settings → Apps & services → App launch", set Cursor Remote to manage manually and turn everything on |
-| iPhone | System push (Web Push), works even when the app is closed | You must first "Add to Home Screen" and open it from the home screen icon; iOS 16.4 or later |
-| Desktop / Android browser | Browser push | The browser must be allowed to show notifications |
+| Android app | Persistent SSE connection to your computer (no Google services required) | Keep background unrestricted; test with “Send a test notification” |
+| iPhone | System push (Web Push) | Add to Home Screen; open from the icon; iOS 16.4+ |
+| Desktop / Android browser | Browser push | Allow notifications in the browser |
 
-When you get alerted:
-
-- **Waiting for approval**: the Agent has been stuck on a "Run / Allow / Accept" button for more than about 10 seconds (buttons that flash by briefly with auto-run enabled don't count).
-- **Finished**: the Agent has stopped running; the notification includes the start of its reply.
-- The window you're currently viewing on your phone doesn't trigger duplicate alerts.
-
-Notifications are sent directly by your computer: the Android app connects straight to your computer; iPhone and browsers go through Apple's / Google's push servers, but the content is end-to-end encrypted and the push servers can't read it.
+Notifications are sent by your computer: the Android app connects straight to it; iPhone/browsers go through Apple/Google push, with end-to-end encrypted payloads.
 
 ## Keeping your computer online (preventing sleep)
 
@@ -238,10 +269,12 @@ powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0
 powercfg /setactive SCHEME_CURRENT
 ```
 
-How to start on Windows (run these in PowerShell, not Cursor's built-in terminal, which closes when Cursor restarts):
+**Preferred:** install **CursorRemote.exe** / MSI and use the tray (Start with Windows). Pair with `npm run pair` or tray → Pair over ADB.
 
-1. In the project directory, run `powershell -ExecutionPolicy Bypass -File .\start-cursor.ps1`. Cursor quits and reopens with the debugging port (the equivalent of `./start-cursor.sh` on Mac).
-2. Then run `npm run public` and keep that window open. `npm run pair` works as usual.
+**From source** (PowerShell outside Cursor’s terminal, which dies when Cursor restarts):
+
+1. `powershell -ExecutionPolicy Bypass -File .\start-cursor.ps1` — restarts Cursor with the debug port.
+2. `npm run public` — or rely on the tray host after a packaged install.
 
 ### Trade-offs
 
@@ -290,7 +323,7 @@ How to start on Windows (run these in PowerShell, not Cursor's built-in terminal
 - GitHub Pages: free for public repositories. Your computer publishes its address once per restart (one commit); Pages recommends no more than 10 builds per hour, and going over just means changes take effect a bit later.
 - GitHub API: 5,000 requests per hour; only a handful are actually used.
 
-GitHub Actions is only used when the author publishes a new APK release; nothing runs on the user's side.
+GitHub Actions is only used when this fork publishes a new release; nothing runs on your account for day-to-day use.
 
 **Not receiving notifications**: first use "Send a test notification" from the menu. If the test notification doesn't arrive: on Android, check the system notification permission and background activity permission; on iPhone, make sure you opened the app from the home screen icon. If the test notification arrives but Agent alerts don't: your computer may be asleep, or Cursor wasn't started with `./start-cursor.sh`.
 
@@ -300,20 +333,6 @@ GitHub Actions is only used when the author publishes a new APK release; nothing
 
 **Tapping a file says it can't be found**: the file may have been deleted or moved; for files in SSH windows, your computer needs passwordless `ssh` to that machine.
 
-## Support the project
-
-If you find it useful, you can buy the author a coffee ☕ (entirely optional).
-
-| WeChat Pay | Alipay |
-|---|---|
-| <img src="app/donate-wechat.jpg" width="220" alt="WeChat Pay QR code"> | <img src="app/donate-alipay.jpg" width="220" alt="Alipay QR code"> |
-
-What the app shows under "⋯ → Support the author" is controlled by `app/donate.json`. You can add international payment links in `links`, for example:
-
-```json
-"links": [{ "label": "PayPal", "url": "https://paypal.me/your-username" }]
-```
-
 ## License
 
-MIT
+MIT. Copyright notice for the original upstream author is retained in [LICENSE](LICENSE). This fork is maintained at [edwardlthompson/cursor-remote-lite](https://github.com/edwardlthompson/cursor-remote-lite).

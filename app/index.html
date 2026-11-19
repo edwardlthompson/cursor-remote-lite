@@ -108,11 +108,23 @@
 
   /* composer */
   footer { flex: none; background: #252526; border-top: 1px solid #333; padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  #presenceBar { display: none; align-items: center; gap: 8px; padding: 6px 8px; margin: 0 -2px; border-radius: 8px; background: #3a2f1a; border: 1px solid #6b5420; font-size: 12.5px; color: #f0d78c; }
+  #presenceBar.show { display: flex; }
+  #presenceBar button { flex: none; font-size: 12px; padding: 4px 10px; }
+  #quickPrompts { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; padding-bottom: 2px; }
+  #quickPrompts::-webkit-scrollbar { display: none; }
+  #quickPrompts button { font-size: 12px; padding: 4px 10px; border-radius: 14px; flex: none; white-space: nowrap; background: #2d2d30; color: #ccc; }
+  #quickPrompts button.qp-add { color: #8ec7ff; border-style: dashed; }
   #chatTools { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
   #chatTools::-webkit-scrollbar { display: none; }
   #chatTools button { font-size: 12.5px; padding: 3px 10px; border-radius: 14px; flex: none; white-space: nowrap; }
   #chatTools #pickModel { flex: 0 1 auto; min-width: 84px; overflow: hidden; text-overflow: ellipsis; }
   .row { display: flex; gap: 8px; min-width: 0; align-items: flex-end; }
+  footer.locked .row, footer.locked #quickPrompts, footer.locked #chatTools { opacity: 0.45; pointer-events: none; }
+  #diffView { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 55dvh; overflow: auto; background: #1e1e1e; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  #diffView .add { color: #73c991; }
+  #diffView .del { color: #f14c4c; }
+  #diffView .meta { color: #888; }
   textarea { flex: 1; min-width: 0; min-height: 40px; max-height: 32vh; padding: 9px 10px; resize: none; font-size: 16px; line-height: 1.35; }
   #img { flex: none; height: 40px; width: 40px; padding: 0; display: flex; align-items: center; justify-content: center; color: #bbb; }
   #mic { display: none; }
@@ -190,6 +202,41 @@
   #gateInput.code { font-size: 26px; letter-spacing: 8px; text-align: center; }
   #gateMsg.err { color: #f77; }
   #gateInfo { font-size: 12px; color: #777; }
+
+  /* clipboard + tablet dashboard */
+  #clipPush, #clipPull { flex: none; height: 40px; width: 40px; padding: 0; display: flex; align-items: center; justify-content: center; color: #bbb; }
+  #dashStrip { display: none; flex: none; gap: 6px; padding: 6px 10px; overflow-x: auto; background: #222; border-bottom: 1px solid #333; scrollbar-width: none; }
+  #dashStrip::-webkit-scrollbar { display: none; }
+  #dashStrip .dw { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 10px; border-radius: 8px; border: 1px solid #3c3c3c; background: #2d2d2d; max-width: 200px; text-align: left; }
+  #dashStrip .dw.cur { border-color: #1177bb; }
+  #dashStrip .dw .dn { font-size: 12.5px; color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+  #dashStrip .dw .ds { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .04em; }
+  #dashStrip .dw.running .ds { color: #4af; }
+  #dashStrip .dw.waiting .ds { color: #e5c07b; }
+  #dashStrip .dw.idle .ds { color: #6a6; }
+  #dashSide { display: none; flex-direction: column; min-width: 0; min-height: 0; background: #252526; border-left: 1px solid #333; }
+  #dashSide .dh { flex: none; padding: 10px 12px 6px; font-size: 13px; color: #aaa; font-weight: 600; }
+  #dashChanges { flex: 1; overflow-y: auto; padding: 4px 10px 12px; }
+  #dashChanges .dc { display: flex; gap: 6px; align-items: stretch; margin-bottom: 6px; }
+  #dashChanges .dc .opt { margin-bottom: 0; flex: 1; }
+  #dashEmpty { color: #777; font-size: 13px; padding: 8px 4px; }
+
+  @media (orientation: landscape) and (min-width: 900px) {
+    body.tablet-dash {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 34%);
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+    }
+    body.tablet-dash > header { grid-column: 1 / -1; grid-row: 1; }
+    body.tablet-dash > #dashStrip { grid-column: 1 / -1; grid-row: 2; display: flex; }
+    body.tablet-dash > main { grid-column: 1; grid-row: 3; }
+    body.tablet-dash > #dashSide { grid-column: 2; grid-row: 3; display: flex; }
+    body.tablet-dash > footer { grid-column: 1 / -1; grid-row: 4; }
+    body.tablet-dash > #shade,
+    body.tablet-dash > #sheet,
+    body.tablet-dash > #viewer,
+    body.tablet-dash > #gate { grid-column: 1 / -1; }
+  }
 </style>
 </head>
 <body>
@@ -202,6 +249,8 @@
   </div>
   <button id="menuBtn">⋯</button>
 </header>
+
+<div id="dashStrip" aria-label="Window status"></div>
 
 <main>
   <section id="chatView" class="view active">
@@ -240,7 +289,14 @@
   </section>
 </main>
 
+<aside id="dashSide" aria-label="Changed files">
+  <div class="dh">Changed files</div>
+  <div id="dashChanges"><div id="dashEmpty">No pending changes</div></div>
+</aside>
+
 <footer>
+  <div id="presenceBar"><span id="presenceText"></span><button type="button" id="takeControl">Take control</button></div>
+  <div id="quickPrompts" aria-label="Quick prompts"></div>
   <div id="chatTools">
     <button id="pickMode" hidden></button>
     <button id="pickModel" hidden></button>
@@ -251,6 +307,8 @@
     <textarea id="text" rows="1" placeholder="Message Cursor Agent…" enterkeyhint="send"></textarea>
     <button id="img" title="Attach image" aria-label="Attach image"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></button>
     <input id="imgFile" type="file" accept="image/*" hidden>
+    <button id="clipPush" title="Paste phone clipboard into Cursor" aria-label="Paste clipboard to Cursor"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="3" width="10" height="4" rx="1"/><path d="M9 3v2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M12 11v6M9 14h6"/></svg></button>
+    <button id="clipPull" title="Copy selection or last code block from Cursor" aria-label="Copy from Cursor"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="1"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></button>
     <button id="mic" title="Voice input" aria-label="Voice input"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
     <button id="send">Send</button>
   </div>
@@ -556,11 +614,14 @@ function connect() {
       const fromNotice = window.CursorRemoteApp?.takeOpenWin?.();
       if (fromNotice) store.set('window', fromNotice);
       send({ t: 'attach', id: store.get('window') || '' });
+      const fromAction = window.CursorRemoteApp?.takeNotifAction?.();
+      if (fromAction) setTimeout(() => handleNotifAction(fromAction, store.get('window')), 400);
       sentWidth = 0;
       applyQuality();
       send({ t: 'visible', v: document.visibilityState === 'visible' });
       send({ t: 'lang', v: I18N.lang });
       syncNotify();
+      syncTabletDash();
       setTimeout(checkAppUpdate, 3000);
     }
     else if (m.t === 'chat') renderChat(m.chat);
@@ -576,10 +637,34 @@ function connect() {
     else if (m.t === 'menu') showMenu(m.kind, m.items, m.max);
     else if (m.t === 'params') showParams(m);
     else if (m.t === 'changes') showChanges(m);
+    else if (m.t === 'diff') showDiff(m);
     else if (m.t === 'file') showFile(m);
+    else if (m.t === 'presence') applyPresence(m);
+    else if (m.t === 'dash') renderDash(m);
+    else if (m.t === 'clipboard') onClipboardPull(m);
     else if (m.t === 'status') status(m.msg, m.ok);
   };
 }
+
+/* ---------- multi-device control lock ---------- */
+let hasControl = true;
+function applyPresence(m) {
+  hasControl = !m.locked || m.self;
+  const bar = $('presenceBar');
+  const foot = document.querySelector('footer');
+  if (!m.locked || m.self) {
+    bar.classList.remove('show');
+    foot.classList.remove('locked');
+    return;
+  }
+  $('presenceText').textContent = (m.holderName || 'Another device') + ' is controlling this window';
+  bar.classList.add('show');
+  foot.classList.add('locked');
+}
+$('takeControl').onclick = () => {
+  send({ t: 'claim', win: currentWindow || store.get('window') || '' });
+  status('Taking control…');
+};
 
 /* ---------- bottom sheet ---------- */
 let sheetKind = null;
@@ -640,16 +725,98 @@ function showMenu(kind, items, max) {
   }).join(''));
 }
 
+let changesCache = [];
+let changesActions = [];
+let lastDashChanged = -1;
 function showChanges(m) {
   status('');
-  if (!m.files.length) { if (sheetKind === 'changes') closeSheet(); return status('No pending changes'); }
+  changesCache = m.files || [];
+  changesActions = m.actions || [];
+  renderDashChanges();
+  if (!m.files.length) { if (sheetKind === 'changes' || sheetKind === 'diff') closeSheet(); return status('No pending changes'); }
+  // On tablet dashboard the side panel already shows files — skip the sheet unless already open.
+  if (document.body.classList.contains('tablet-dash') && sheetKind !== 'changes' && sheetKind !== 'diff') return;
   openSheet('changes', `<h3>Files changed by the Agent (${m.files.length})</h3>`
     + (m.actions.length ? `<div class="pRow" style="margin-bottom:10px">${m.actions.map(a => `<button data-chbar="${esc(a)}">${esc(a)}</button>`).join('')}</div>` : '')
-    + m.files.map((f, i) => `<div class="optRow"><button class="opt" data-chopen="${esc(f.name)}"><span class="lbl">${esc(f.name)}`
+    + m.files.map((f, i) => `<div class="optRow"><button class="opt" data-chdiff="${esc(f.name)}" data-chi="${i}"><span class="lbl">${esc(f.name)}`
       + `<span class="sub"><span class="add">${esc(f.add)}</span> <span class="del">${esc(f.del)}</span></span></span></button>`
       + `<button class="paramBtn" data-ch="${i}" data-name="${esc(f.name)}" data-act2="keep">Keep</button>`
       + `<button class="paramBtn" data-ch="${i}" data-name="${esc(f.name)}" data-act2="undo">Undo</button></div>`).join('')
-    + '<div class="hint">Tap a file name to view it. "Keep" accepts the change to that file; "Undo" restores it to how it was before.</div>');
+    + '<div class="hint">Tap a file for its diff. Keep / Undo work like on the desktop.</div>');
+}
+
+function renderDashChanges() {
+  const box = $('dashChanges');
+  if (!box) return;
+  if (!changesCache.length) {
+    box.innerHTML = '<div id="dashEmpty">No pending changes</div>';
+    return;
+  }
+  box.innerHTML = (changesActions.length
+    ? `<div class="pRow" style="margin-bottom:8px">${changesActions.map(a => `<button data-chbar="${esc(a)}">${esc(a)}</button>`).join('')}</div>`
+    : '')
+    + changesCache.map((f, i) => `<div class="dc"><button class="opt" data-chdiff="${esc(f.name)}"><span class="lbl">${esc(f.name)}`
+      + `<span class="sub"><span class="add">${esc(f.add)}</span> <span class="del">${esc(f.del)}</span></span></span></button>`
+      + `<button class="paramBtn" data-ch="${i}" data-name="${esc(f.name)}" data-act2="keep">Keep</button>`
+      + `<button class="paramBtn" data-ch="${i}" data-name="${esc(f.name)}" data-act2="undo">Undo</button></div>`).join('');
+}
+
+function renderDash(m) {
+  const strip = $('dashStrip');
+  const list = m.windows || [];
+  strip.innerHTML = list.map(w => {
+    const label = w.state === 'waiting' ? 'waiting' : w.state === 'running' ? 'running' : 'idle';
+    return `<button type="button" class="dw ${esc(label)} ${w.current ? 'cur' : ''}" data-win="${esc(w.id)}" title="${esc(w.waitingText || w.title || '')}">`
+      + `<span class="dn">${esc(w.name || w.title || w.id)}</span>`
+      + `<span class="ds">${label}</span></button>`;
+  }).join('') || '<span class="hint" style="padding:4px 0">No Cursor windows</span>';
+}
+
+let dashTimer = null;
+function syncTabletDash() {
+  const on = matchMedia('(orientation: landscape) and (min-width: 900px)').matches;
+  document.body.classList.toggle('tablet-dash', on);
+  clearInterval(dashTimer);
+  dashTimer = null;
+  if (!on || !authed) return;
+  send({ t: 'dash' });
+  send({ t: 'changes' });
+  dashTimer = setInterval(() => {
+    if (!authed) return;
+    send({ t: 'dash' });
+  }, 3000);
+}
+matchMedia('(orientation: landscape) and (min-width: 900px)').addEventListener('change', syncTabletDash);
+
+function formatDiffHtml(text) {
+  return esc(text || '').split('\n').map(line => {
+    if (line.startsWith('+') && !line.startsWith('+++')) return `<span class="add">${line}</span>`;
+    if (line.startsWith('-') && !line.startsWith('---')) return `<span class="del">${line}</span>`;
+    if (line.startsWith('@@') || line.startsWith('diff ') || line.startsWith('index ')) return `<span class="meta">${line}</span>`;
+    return line;
+  }).join('\n');
+}
+
+function showDiff(m) {
+  if (m.loading) return status('Loading diff…');
+  status('');
+  if (m.error) return openSheet('diff', `<h3>${esc(m.name || 'Diff')}</h3><div class="hint">${esc(m.error)}</div>`
+    + `<div class="askBtns"><button data-chopen="${esc(m.name || '')}">Open preview</button><button id="diffBack">Back</button></div>`);
+  const idx = changesCache.findIndex(f => f.name === m.name);
+  const prev = idx > 0 ? changesCache[idx - 1] : null;
+  const next = idx >= 0 && idx < changesCache.length - 1 ? changesCache[idx + 1] : null;
+  openSheet('diff', `<h3>${esc(m.name || 'Diff')}${m.truncated ? ' (truncated)' : ''}</h3>`
+    + `<div id="diffView">${formatDiffHtml(m.text || '(empty)')}</div>`
+    + `<div class="pRow" style="margin-bottom:8px">`
+    + (prev ? `<button data-chdiff="${esc(prev.name)}">← Prev</button>` : '')
+    + (next ? `<button data-chdiff="${esc(next.name)}">Next →</button>` : '')
+    + `</div>`
+    + `<div class="askBtns">`
+    + `<button data-ch="${Math.max(0, idx)}" data-name="${esc(m.name)}" data-act2="keep">Keep</button>`
+    + `<button data-ch="${Math.max(0, idx)}" data-name="${esc(m.name)}" data-act2="undo" class="danger">Undo</button>`
+    + `<button id="diffBack">Back</button></div>`);
+  const back = $('diffBack');
+  if (back) back.onclick = () => send({ t: 'changes' });
 }
 
 function showParams(m) {
@@ -663,9 +830,6 @@ let installEvent = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvent = e; });
 const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
-let donate = null;
-fetch('donate.json').then(r => r.ok ? r.json() : null).then(d => { if (d?.qr?.length || d?.links?.length) donate = d; }).catch(() => {});
-
 async function showDevices() {
   let list = [];
   try { list = (await api('/api/devices').then(r => r.json())).devices || []; } catch {}
@@ -674,15 +838,6 @@ async function showDevices() {
     <div class="opt ${d.current ? 'cur' : ''}"><span class="lbl">${esc(d.name)}<span class="sub">Paired ${when(d.created)} · last used ${when(d.lastSeen)}</span></span>
     ${d.current ? '' : `<button data-remove="${esc(d.id)}" data-name="${esc(d.name)}">Remove</button>`}</div>`).join('')
     + '<div class="hint">Add a device: run npm run pair on the computer.<br>Turn on Authenticator 2FA: npm run 2fa.</div>');
-}
-
-function showDonate() {
-  const links = (donate.links || []).filter(l => /^https:\/\//.test(l.url));
-  openSheet('donate', `<h3>Support the author ☕</h3>
-    <div class="hint">If you find it useful, you can buy the author a coffee. Entirely optional — thank you!</div>
-    <div class="qrs">${(donate.qr || []).map(q => `<figure><img src="${esc(q.image)}" alt="${esc(q.label)}"><figcaption>${esc(q.label)}</figcaption></figure>`).join('')}</div>
-    ${links.map(l => `<a class="opt" href="${esc(l.url)}" target="_blank" rel="noopener"><span class="lbl">${esc(l.label)}</span><span class="tag">Intl</span></a>`).join('')}
-    <div class="hint">Long-press a QR code to save it, then scan it from your photos in WeChat / Alipay.</div>`);
 }
 
 function showMainMenu() {
@@ -698,17 +853,18 @@ function showMainMenu() {
     ${inApp && appVersion ? update : ''}
     ${inApp ? '<button class="opt" data-act="changeUrl"><span class="lbl">Change app address</span></button>'
       : standalone() ? '' : '<button class="opt" data-act="install"><span class="lbl">Add to home screen (opens like an app)</span></button>'}
+    <button class="opt" data-act="clipPush"><span class="lbl">Paste clipboard → Cursor<span class="sub">Phone clipboard into the Agent composer</span></span></button>
+    <button class="opt" data-act="clipPull"><span class="lbl">Copy Cursor → phone<span class="sub">Selection or last code block</span></span></button>
     <button class="opt" data-act="reconnect"><span class="lbl">Reconnect</span></button>
     <button class="opt" data-act="voice"><span class="lbl">Voice button<span class="sub">Not needed if your keyboard has a mic</span></span><span class="switch ${store.get('voice') === 'on' ? 'on' : ''}"></span></button>
     <button class="opt" data-act="lang"><span class="lbl">语言 / Language</span><span class="tag">${I18N.lang === 'en' ? 'English' : '中文'}</span></button>
     <button class="opt" data-act="devices"><span class="lbl">Paired devices</span></button>
-    <button class="opt" data-act="logout"><span class="lbl">Unpair this device</span></button>
-    ${donate ? '<button class="opt" data-act="donate"><span class="lbl">Support the author ☕</span></button>' : ''}`);
+    <button class="opt" data-act="logout"><span class="lbl">Unpair this device</span></button>`);
 }
 $('menuBtn').onclick = showMainMenu;
 
 const inApp = /CursorRemoteApp/.test(navigator.userAgent);
-const APK_RELEASE = 'https://github.com/Suchenl/cursor-remote-lite/releases/latest/download/CursorRemote.apk';
+const APK_RELEASE = 'https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.apk';
 // A copy on the user's own GitHub Pages downloads more reliably in mainland China than GitHub Releases.
 let apkUrl = APK_RELEASE;
 fetch('CursorRemote.apk', { method: 'HEAD' }).then(r => { if (r.ok) apkUrl = new URL('CursorRemote.apk', location.href).href; }).catch(() => {});
@@ -729,7 +885,7 @@ async function checkAppUpdate(manual = false) {
   if (!inApp || !appVersion) return;
   if (!manual && Date.now() - (store.get('apkChecked') || 0) < 6 * 3600e3) return;
   try {
-    const r = await fetch('https://api.github.com/repos/Suchenl/cursor-remote-lite/releases/latest', { cache: 'no-store' });
+    const r = await fetch('https://api.github.com/repos/edwardlthompson/cursor-remote-lite/releases/latest', { cache: 'no-store' });
     if (!r.ok) throw new Error();
     store.set('apkLatest', String((await r.json()).tag_name || '').replace(/^v/, ''));
     store.set('apkChecked', Date.now());
@@ -816,10 +972,38 @@ function openWin(id) {
   if (authed) send({ t: 'attach', id });
 }
 window.openWin = openWin;
-navigator.serviceWorker?.addEventListener('message', e => openWin(e.data?.openWin));
+window.handleNotifAction = handleNotifAction;
+function handleNotifAction(action, win) {
+  if (win) openWin(win);
+  if (!action) return;
+  const go = () => {
+    if (action === 'continue') send({ t: 'send', text: 'Continue', submit: true });
+    else if (action === 'reply') { $('text')?.focus(); status('Type your reply'); }
+    else if (action === 'approve') send({ t: 'click', item: 'g', n: 0 });
+    else if (action === 'skip') send({ t: 'click', item: 'g', n: 1 });
+    else if (action === 'stop') send({ t: 'stop' });
+  };
+  if (authed) go();
+  else setTimeout(go, 800);
+}
+navigator.serviceWorker?.addEventListener('message', e => {
+  openWin(e.data?.openWin);
+  if (e.data?.notifAction) handleNotifAction(e.data.notifAction, e.data.openWin);
+});
 document.addEventListener('visibilitychange', () => {
   if (authed) send({ t: 'visible', v: document.visibilityState === 'visible' });
 });
+// Deep links from notification openWindow hashes
+(() => {
+  const h = location.hash || '';
+  const win = /(?:^|[&#])win=([^&]*)/.exec(h)?.[1];
+  if (win) store.set('window', decodeURIComponent(win));
+  if (/continue=1/.test(h)) setTimeout(() => handleNotifAction('continue', store.get('window')), 1200);
+  else if (/reply=1/.test(h)) setTimeout(() => handleNotifAction('reply', store.get('window')), 1200);
+  else if (/approve=1/.test(h)) setTimeout(() => handleNotifAction('approve', store.get('window')), 1200);
+  else if (/skip=1/.test(h)) setTimeout(() => handleNotifAction('skip', store.get('window')), 1200);
+  else if (/stop=1/.test(h)) setTimeout(() => handleNotifAction('stop', store.get('window')), 1200);
+})();
 
 function showInstallHelp() {
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -834,12 +1018,36 @@ function showInstallHelp() {
     ${installEvent ? '<button class="opt" data-act="browserInstall"><span class="lbl">Or: install via the browser (needs Google services)</span></button>' : ''}`);
 }
 
+$('dashStrip').addEventListener('click', e => {
+  const b = e.target.closest('[data-win]');
+  if (!b) return;
+  openWin(b.dataset.win);
+  setTimeout(() => { send({ t: 'dash' }); send({ t: 'changes' }); }, 400);
+});
+$('dashSide').addEventListener('click', async e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.chdiff) { status('Loading diff…'); return send({ t: 'diff', path: b.dataset.chdiff }); }
+  if (b.dataset.ch) {
+    const undo = b.dataset.act2 === 'undo';
+    if (undo && !await ask(`Undo the changes to "${b.dataset.name}"?\nThe file goes back to how it was before the Agent changed it.`, 'Undo')) return send({ t: 'changes' });
+    status(undo ? 'Undoing…' : 'Keeping…');
+    return send({ t: 'change', i: Number(b.dataset.ch), name: b.dataset.name, act: b.dataset.act2 });
+  }
+  if (b.dataset.chbar) {
+    if (RISKY.test(b.dataset.chbar) && !await ask(`Really tap "${b.dataset.chbar}"?`, b.dataset.chbar)) return send({ t: 'changes' });
+    status('Working…');
+    return send({ t: 'change', i: 0, name: b.dataset.chbar, act: 'bar' });
+  }
+});
+
 $('sheet').addEventListener('click', async e => {
   const b = e.target.closest('button');
   if (!b) return;
   if (b.dataset.win) { closeSheet(); return send({ t: 'attach', id: b.dataset.win }); }
   if (b.dataset.kind) { closeSheet(); status('Switching…'); return send({ t: 'pickMenu', kind: b.dataset.kind, label: b.dataset.label }); }
   if (b.dataset.chopen) { closeSheet(); return openFile(b.dataset.chopen); }
+  if (b.dataset.chdiff) { status('Loading diff…'); return send({ t: 'diff', path: b.dataset.chdiff }); }
   if (b.dataset.ch) {
     const undo = b.dataset.act2 === 'undo';
     if (undo && !await ask(`Undo the changes to "${b.dataset.name}"?\nThe file goes back to how it was before the Agent changed it.`, 'Undo')) return send({ t: 'changes' });
@@ -873,7 +1081,8 @@ $('sheet').addEventListener('click', async e => {
     else { await checkAppUpdate(true); if (apkUpdate()) showMainMenu(); }
   }
   else if (act === 'reconnect') { closeSheet(); ws?.close(); }
-  else if (act === 'donate') showDonate();
+  else if (act === 'clipPush') { closeSheet(); $('clipPush').click(); }
+  else if (act === 'clipPull') { closeSheet(); $('clipPull').click(); }
   else if (act === 'lang') openSheet('lang', '<h3>语言 / Language</h3>'
     + `<button class="opt ${I18N.lang === 'zh' ? 'cur' : ''}" data-act="setLang" data-v="zh"><span class="lbl">中文</span></button>`
     + `<button class="opt ${I18N.lang === 'en' ? 'cur' : ''}" data-act="setLang" data-v="en"><span class="lbl">English</span></button>`);
@@ -972,6 +1181,10 @@ function renderChat(chat) {
   $('actionBar').innerHTML = buttonsHtml(chat.global, 'g');
   $('actionBar').classList.toggle('show', chat.global.length > 0);
   renderQueue(chat.busy, chat.queued || [], chat.subagents || [], chat.readonly, chat.changed);
+  if (document.body.classList.contains('tablet-dash') && (chat?.changed || 0) !== lastDashChanged) {
+    lastDashChanged = chat?.changed || 0;
+    send({ t: 'changes' });
+  }
   renderQuestions(chat.readonly ? null : chat.questions);
 
   if (stick) list.scrollTop = list.scrollHeight;
@@ -1276,12 +1489,87 @@ const text = $('text');
 function autosize() { text.style.height = 'auto'; text.style.height = text.scrollHeight + 'px'; }
 text.addEventListener('input', autosize);
 $('send').onclick = () => {
+  if (!hasControl) return status('Take control first', false);
   const v = text.value;
   if (!v.trim()) return;
   send({ t: 'send', text: v, submit: true });
   text.value = ''; autosize();
   if (mode === 'chat') list.scrollTop = list.scrollHeight;
 };
+
+/* ---------- quick prompts ---------- */
+const QP_DEFAULTS = [
+  { label: 'Continue', text: 'Continue', submit: true },
+  { label: 'Fix tests', text: 'Fix the failing tests', submit: true },
+  { label: 'Summarize diff', text: 'Summarize the current diff', submit: true },
+  { label: 'Ship it', text: 'Prepare a commit for these changes', submit: false },
+];
+function loadQuickPrompts() {
+  try {
+    const raw = store.get('quickPrompts');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) return parsed.slice(0, 12);
+    }
+  } catch { /* */ }
+  return QP_DEFAULTS.map(x => ({ ...x }));
+}
+function saveQuickPrompts(list) {
+  store.set('quickPrompts', JSON.stringify(list.slice(0, 12)));
+}
+function renderQuickPrompts() {
+  const list = loadQuickPrompts();
+  const el = $('quickPrompts');
+  el.innerHTML = list.map((p, i) =>
+    `<button type="button" data-qp="${i}" title="Long-press to edit">${esc(p.label || p.text)}</button>`).join('')
+    + `<button type="button" class="qp-add" data-qp-add title="Add quick prompt">+</button>`;
+}
+renderQuickPrompts();
+$('quickPrompts').addEventListener('click', e => {
+  const add = e.target.closest('[data-qp-add]');
+  if (add) {
+    const label = prompt('Chip label', 'Continue');
+    if (!label) return;
+    const body = prompt('Prompt text', label) || label;
+    const submit = confirm('Send immediately when tapped? (Cancel = only fill the box)');
+    const list = loadQuickPrompts();
+    list.push({ label: label.slice(0, 40), text: body.slice(0, 2000), submit });
+    saveQuickPrompts(list);
+    return renderQuickPrompts();
+  }
+  const b = e.target.closest('[data-qp]');
+  if (!b) return;
+  if (!hasControl) return status('Take control first', false);
+  const list = loadQuickPrompts();
+  const p = list[Number(b.dataset.qp)];
+  if (!p) return;
+  if (p.submit) {
+    send({ t: 'send', text: p.text, submit: true });
+    status('Sent: ' + (p.label || p.text));
+  } else {
+    text.value = p.text;
+    autosize();
+    text.focus();
+  }
+});
+let qpLongTimer = null;
+$('quickPrompts').addEventListener('pointerdown', e => {
+  const b = e.target.closest('[data-qp]');
+  if (!b) return;
+  qpLongTimer = setTimeout(async () => {
+    qpLongTimer = null;
+    const list = loadQuickPrompts();
+    const i = Number(b.dataset.qp);
+    const p = list[i];
+    if (!p) return;
+    if (!confirm(`Delete quick prompt "${p.label}"?`)) return;
+    list.splice(i, 1);
+    saveQuickPrompts(list);
+    renderQuickPrompts();
+  }, 650);
+});
+$('quickPrompts').addEventListener('pointerup', () => { clearTimeout(qpLongTimer); qpLongTimer = null; });
+$('quickPrompts').addEventListener('pointerleave', () => { clearTimeout(qpLongTimer); qpLongTimer = null; });
 
 /* ---------- voice input ---------- */
 // Android WebView has no Web Speech API, so the app uses the system recognizer through the bridge instead.
@@ -1308,6 +1596,45 @@ async function shrinkImage(file) {
   } while (blob.size > 1.5e6 && q > 0.4);
   return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
 }
+
+async function readPhoneClipboard() {
+  try {
+    if (navigator.clipboard?.readText) return await navigator.clipboard.readText();
+  } catch { /* permission / insecure */ }
+  const v = prompt('Paste text to send into Cursor’s composer');
+  return v || '';
+}
+async function writePhoneClipboard(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* */ }
+  return false;
+}
+function onClipboardPull(m) {
+  if (!m.text) return;
+  writePhoneClipboard(m.text).then(ok => {
+    if (ok) status(`Copied from Cursor (${m.source || 'text'}, ${m.text.length} chars)`);
+    else {
+      text.value = m.text;
+      autosize();
+      status('Could not write system clipboard — filled the composer instead');
+    }
+  });
+}
+$('clipPush').onclick = async () => {
+  if (!hasControl) return status('Take control first', false);
+  status('Reading clipboard…');
+  const t = await readPhoneClipboard();
+  if (!t.trim()) return status('Clipboard is empty', false);
+  send({ t: 'clipboard', op: 'push', text: t });
+};
+$('clipPull').onclick = () => {
+  status('Copying from Cursor…');
+  send({ t: 'clipboard', op: 'pull' });
+};
 
 $('img').onclick = () => $('imgFile').click();
 $('imgFile').onchange = async () => {
