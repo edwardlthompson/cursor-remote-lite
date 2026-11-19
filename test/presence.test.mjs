@@ -40,5 +40,7 @@ test('heartbeat refreshes holder; stale allows steal', async () => {
 test('CONTROL_TYPES includes send and claim-sensitive ops', () => {
   assert.ok(CONTROL_TYPES.has('send'));
   assert.ok(CONTROL_TYPES.has('change'));
-  assert.ok(CONTROL_TYPES.has('diff'));
+  assert.ok(CONTROL_TYPES.has('editorOpen'));
+  assert.ok(!CONTROL_TYPES.has('file')); // read-only dual-pane preview
+  assert.ok(!CONTROL_TYPES.has('editorSuggest'));
 });

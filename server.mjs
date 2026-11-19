@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 import qrcode from 'qrcode-terminal';
-import { workspaces, workspaceForTitle, fileSize, readFile, readDiff, parseRef } from './files.mjs';
+import { workspaces, workspaceForTitle, fileSize, readFile, readDiff, parseRef, searchFiles } from './files.mjs';
 import {
   DATA_DIR, encryptUrl, createPairing, pairingValid, consumePairing, listDevices, addDevice, findDevice, updateDevice,
   removeDevice, totpConfig, verifyTotp, needsTotp, saveState, readState, appBase,
@@ -250,9 +250,17 @@ function pageHelpers() {
   };
 
   const buttonsIn = (root, strict) => [...root.querySelectorAll('button, [role=button], .anysphere-button, .anysphere-secondary-button, .composer-run-button, .composer-skip-button')]
-    .filter(b => vis(b) && !SKIP.test(b.className) && !b.parentElement.closest('button, [role=button]'))
+    .filter(b => {
+      if (!vis(b) || SKIP.test(b.className)) return false;
+      // Inline file path chips are <code role="button"> — never treat as chat action buttons.
+      if (b.matches('code, a, .md-inline-path-filename, .ui-markdown__inline-code, .ui-markdown__inline-path-filename')) return false;
+      if (b.closest('code, pre, .ui-markdown__inline-code, .md-inline-path-filename')) return false;
+      if (b.parentElement?.closest('button, [role=button]') && b.parentElement.closest('button, [role=button]') !== b) return false;
+      return true;
+    })
     .map(b => ({ el: b, label: ((b.innerText || '').trim() || b.getAttribute('aria-label') || b.title || '').split('\n')[0].slice(0, 30) }))
-    .filter(x => x.label && x.label !== 'Shell command options' && (!strict || ACTION.test(x.label)));
+    .filter(x => x.label && x.label !== 'Shell command options' && !/\.\w{1,12}$/.test(x.label) && !/^Review$/i.test(x.label)
+      && (!strict || ACTION.test(x.label)));
 
   const codeText = n => {
     const lines = n.querySelectorAll('.view-line');
@@ -269,7 +277,8 @@ function pageHelpers() {
       if (['STYLE', 'SCRIPT', 'BUTTON', 'svg', 'SVG', 'IMG'].includes(tag)) continue;
       if (tag === 'BR') { out += '<br>'; continue; }
       if (tag === 'HR') { out += '<hr>'; continue; }
-      if (n.matches(FILE_REF)) { out += `<code data-file="${esc(n.innerText.trim())}">${esc(n.innerText.trim())}</code>`; continue; }
+      // Plain text only — no file chips/buttons in chat (open via Dual pane / Files → Open…).
+      if (n.matches(FILE_REF)) { out += esc(n.innerText.trim()); continue; }
       const inner = clean(n);
       const t = tag.toLowerCase();
       out += BLOCK.has(tag) || INLINE.has(tag) ? `<${t}>${inner}</${t}>` : inner;
@@ -349,6 +358,49 @@ function pageHelpers() {
   };
   const hasComposer = () => [...document.querySelectorAll('.aislash-editor-input[contenteditable="true"], .ui-prompt-input-editor__input[contenteditable="true"]')].some(vis);
 
+  // Editor / Changes / Simple Browser tabs in Agents (ui-tab-system-tab) and classic workbench tabs.
+  const editorTabName = t => {
+    const raw = (t.getAttribute('aria-label')
+      || t.querySelector('.ui-tab-system-tab__content, .tab-label, .label-name')?.innerText
+      || t.innerText || '').trim().replace(/\s+/g, ' ');
+    return raw.replace(/\s*[●\*].*$/, '').replace(/\s+U$/i, '').replace(/\s*preview$/i, '').trim() || raw;
+  };
+  const isSyncedEditorTab = name => {
+    if (!name) return false;
+    if (/^Changes$/i.test(name)) return true;
+    if (/^(Simple Browser|Preview)/i.test(name)) return true;
+    // File-like tabs (BUILD_PLAN.md, path/to/file.ts). Skip the chat-title tab in the strip.
+    return /\.\w{1,16}$/.test(name) || /[\\/]/.test(name);
+  };
+  const editorTabEls = () => {
+    const modern = [...document.querySelectorAll('.ui-tab-system-tab')];
+    const classic = [...document.querySelectorAll('.tabs-container .tab, .editor-group-container .tab, .monaco-workbench .tabs .tab')];
+    return [...modern, ...classic].filter(e => {
+      if (!vis(e)) return false;
+      const l = e.getAttribute('aria-label') || '';
+      if (/Chat Editors/i.test(l)) return false;
+      return isSyncedEditorTab(editorTabName(e));
+    });
+  };
+  const editorTabs = () => editorTabEls().map(t => ({
+    name: editorTabName(t),
+    label: t.getAttribute('aria-label') || editorTabName(t),
+    active: t.getAttribute('aria-selected') === 'true' || t.classList.contains('active') || t.classList.contains('selected') || t.dataset.state === 'active',
+    dirty: !!(t.querySelector('.dirty, .codicon-circle-filled') || /[●\*]|\sU$/i.test(t.getAttribute('aria-label') || t.innerText || '')),
+  })).filter(t => t.name);
+  const editorTabTarget = (name, part) => {
+    const t = editorTabEls().find(e => {
+      const n = editorTabName(e);
+      return n === name || (e.getAttribute('aria-label') || '').startsWith(name);
+    });
+    if (!t) return null;
+    if (part === 'close') {
+      const c = t.querySelector('.codicon-close, .actions-container .codicon-close, .tab-actions .action-label, [aria-label*="Close" i], [class*="close"]');
+      return c ? center(c.closest('a, button, .action-label, [role=button]') || c) : null;
+    }
+    return center(t);
+  };
+
   // The Agent's ask-question tool renders as a toolbar above the composer, outside the message list.
   const QN = '.composer-questionnaire-toolbar';
   const qnBox = () => [...document.querySelectorAll(QN)].find(vis);
@@ -386,11 +438,26 @@ function pageHelpers() {
     return center(o.querySelector('textarea') || o);
   };
 
-  // Files changed by the Agent: the "N Files" toggle above the composer expands a list with per-file undo / keep.
-  const filesToggle = () => [...document.querySelectorAll('span.cursor-pointer')].find(e => vis(e) && /^\d+ Files?$/.test(e.innerText.trim().replace(/\s+/g, ' ')));
+  // Files changed by the Agent — legacy composer list OR Agents "Changes" tab cards.
+  const filesToggle = () => [...document.querySelectorAll('span.cursor-pointer, span, button')].find(e =>
+    vis(e) && /^\d+\s*files?$/i.test(e.innerText.trim().replace(/\s+/g, ' ')));
   const changedCount = () => parseInt(filesToggle()?.innerText || '0', 10) || 0;
-  const changedRows = () => [...document.querySelectorAll('.composer-file-list-item')].filter(vis);
-  const changedFiles = () => changedRows().map(r => {
+  const changedRowsLegacy = () => [...document.querySelectorAll('.composer-file-list-item')].filter(vis);
+  const changeCards = () => [...document.querySelectorAll('.ui-card')].filter(e =>
+    vis(e) && e.querySelector('.ui-card__title-button, .ui-card__title'));
+  const parseChangeTitle = raw => {
+    // Strip bidi / isolate marks Cursor wraps around paths (U+200E–U+200F, U+2066–U+2069, BOM).
+    const clean = String(raw || '').replace(/[\u200e\u200f\ufeff\u2066-\u2069]/g, '').trim();
+    const add = (clean.match(/\+(\d+)/) || [])[1];
+    const del = (clean.match(/[-−](\d+)/) || [])[1];
+    const name = clean.split('\n')[0].replace(/\s+[+\-][\d\sNew]+$/i, '').replace(/\s+\+\d+.*$/, '').trim();
+    return {
+      name,
+      add: add ? `+${add}` : '',
+      del: del ? `-${del}` : '',
+    };
+  };
+  const changedFilesLegacy = () => changedRowsLegacy().map(r => {
     const stat = [...r.querySelectorAll('.tabular-nums span')].map(s => s.innerText.trim());
     return {
       name: r.querySelector('span[style*="nowrap"]')?.innerText.trim() || r.innerText.trim().split('\n')[0],
@@ -398,6 +465,20 @@ function pageHelpers() {
       del: stat.find(s => /^[-−]/.test(s)) || '',
     };
   });
+  const changedFilesCards = () => changeCards().map(card => {
+    const title = card.querySelector('.ui-card__title-button, .ui-card__title')?.innerText || '';
+    return parseChangeTitle(title);
+  }).filter(f => f.name);
+  const changedRows = () => {
+    const legacy = changedRowsLegacy();
+    return legacy.length ? legacy : changeCards();
+  };
+  const changedFiles = () => {
+    const legacy = changedFilesLegacy();
+    return legacy.length ? legacy : changedFilesCards();
+  };
+  const changesTab = () => [...document.querySelectorAll('.ui-tab-system-tab')].find(e =>
+    vis(e) && /^Changes$/i.test((e.getAttribute('aria-label') || editorTabName(e) || '').trim()));
   const filesBar = () => {
     let t = filesToggle();
     while (t && !t.querySelector('[data-click-ready]')) t = t.parentElement;
@@ -409,14 +490,26 @@ function pageHelpers() {
     .filter(x => x.label && !/^(stop|review)$/i.test(x.label));
   const filesState = () => ({ files: changedFiles(), actions: fileBarButtons().map(x => x.label) });
   const fileTarget = (i, name, act) => {
-    if (act === 'toggle') { const t = filesToggle(); return t ? center(t) : null; }
+    if (act === 'toggle') {
+      const tab = changesTab();
+      if (tab) return center(tab);
+      const t = filesToggle();
+      return t ? center(t) : null;
+    }
     if (act === 'bar') return (b => b ? center(b.el) : null)(fileBarButtons().find(x => x.label === name));
-    const row = changedRows()[i];
-    if (!row || changedFiles()[i].name !== name) return null;
+    const rows = changedRows();
+    const files = changedFiles();
+    const row = rows[i];
+    if (!row || files[i]?.name !== name) {
+      // Name-based fallback (list may have reordered).
+      const idx = files.findIndex(f => f.name === name);
+      if (idx < 0 || !rows[idx]) return null;
+      return fileTarget(idx, name, act);
+    }
     row.scrollIntoView({ block: 'nearest' });
-    if (act === 'row') return center(row);
+    if (act === 'row') return center(row.querySelector('.ui-card__title-button, .ui-card__title') || row);
     const icon = row.querySelector(act === 'undo' ? '.codicon-x-two' : '.codicon-check-two');
-    return icon ? center(icon.closest('.anysphere-icon-button') || icon) : null;
+    return icon ? center(icon.closest('.anysphere-icon-button, button') || icon) : null;
   };
 
   // Editing a queued message loads it into the main composer, which is tagged with the item id until saved.
@@ -454,7 +547,8 @@ function pageHelpers() {
         item.h = md ? clean(md) : esc(el.innerText);
       } else item.t = summary(el);
       if (k === 'tool') { const f = toolFile(el); if (f) item.f = f; }
-      const b = buttonsIn(el, false);
+      // Only real Agent actions (Run / Stop / …) — never file-name pills after a turn.
+      const b = buttonsIn(el, true);
       if (b.length) item.b = b.map(x => x.label);
       return item;
     }).filter(it => it.t || it.h);
@@ -662,7 +756,7 @@ function pageHelpers() {
 
   return { extract, locate, panelRect, control, menuItems, menuItem, quickOpenRows, agentState, queueTarget, stopTarget, focusQueueEdit,
     menuOpen, maxToggle, modelTarget, modelParams, paramTarget, subTarget, activeChatTab, tabTarget, hasComposer, filesState, fileTarget, questionTarget,
-    ensureAgentSidebar, agentSidebarVisible, clipboardPull };
+    editorTabs, editorTabTarget, ensureAgentSidebar, agentSidebarVisible, clipboardPull };
 }
 
 const helpersCall = call => `(${pageHelpers.toString()})().${call}`;
@@ -795,7 +889,8 @@ class Session {
     setTimeout(() => this.pollChat().catch(() => {}), 500);
   }
 
-  // Opens Cursor's changed-files list if needed, runs fn, then puts the list back the way it was.
+  // Opens Cursor's changed-files list / Changes tab if needed, runs fn, then leaves the tab open
+  // (Agents Changes tab is useful to keep; legacy composer list is collapsed again).
   async withFiles(fn) {
     const state = () => this.cdp.evaluate(helpersCall('filesState()'));
     let s = await state();
@@ -804,17 +899,12 @@ class Session {
       const t = await this.cdp.evaluate(helpersCall('fileTarget(0, "", "toggle")'));
       if (!t) return fn(s);
       await this.tapCss(t.x, t.y);
-      for (let i = 0; i < 8 && !s.files.length; i++) {
-        await new Promise(r => setTimeout(r, 120));
+      for (let i = 0; i < 12 && !s.files.length; i++) {
+        await new Promise(r => setTimeout(r, 150));
         s = await state();
       }
     }
-    try {
-      return await fn(s);
-    } finally {
-      const t = opened && await this.cdp.evaluate(helpersCall('fileTarget(0, "", "toggle")'));
-      if (t && (await state()).files.length) await this.tapCss(t.x, t.y);
-    }
+    return fn(s);
   }
 
   async listChanges() {
@@ -1022,8 +1112,9 @@ class Session {
     if (this.client.readyState === 1) this.client.send(JSON.stringify(obj));
   }
 
-  // Asks Cursor's own Cmd+P index where a bare file name lives, then closes the picker again.
-  async quickOpen(name) {
+  // Asks Cursor's own Cmd+P index where a bare file name lives.
+  // open=false (default): return matches then Escape. open=true: Enter the best match.
+  async quickOpen(name, { open = false } = {}) {
     await this.key(process.platform === 'darwin' ? 'Meta+p' : 'Ctrl+p');
     try {
       let rows = null;
@@ -1036,12 +1127,73 @@ class Session {
       let hits = [];
       for (let i = 0; i < 12; i++) {
         await new Promise(r => setTimeout(r, 250));
-        hits = (await this.cdp.evaluate(helpersCall('quickOpenRows()')) || []).filter(r => r.name === name);
+        const all = await this.cdp.evaluate(helpersCall('quickOpenRows()')) || [];
+        hits = all.filter(r => r.name === name || r.name?.includes(name) || name.includes(r.name));
+        if (!hits.length) hits = all;
         if (hits.length) break;
+      }
+      if (open && hits.length) {
+        await this.key('Enter');
+        return hits;
       }
       return hits;
     } finally {
-      await this.key('Escape');
+      if (!open) await this.key('Escape');
+    }
+  }
+
+  async listEditors() {
+    const tabs = await this.cdp.evaluate(helpersCall('editorTabs()')) || [];
+    this.emit({ t: 'editors', tabs });
+    return tabs;
+  }
+
+  async editorFocus(name) {
+    const pos = await this.cdp.evaluate(helpersCall(`editorTabTarget(${JSON.stringify(name)}, 'focus')`));
+    if (!pos) throw new Error(`Editor tab not found: ${name}`);
+    await this.tapCss(pos.x, pos.y);
+    setTimeout(() => this.listEditors().catch(() => {}), 200);
+  }
+
+  async editorClose(name) {
+    const pos = await this.cdp.evaluate(helpersCall(`editorTabTarget(${JSON.stringify(name)}, 'close')`));
+    if (!pos) {
+      // Fallback: focus then Ctrl+W
+      await this.editorFocus(name).catch(() => {});
+      await this.key(process.platform === 'darwin' ? 'Meta+w' : 'Ctrl+w');
+    } else {
+      await this.tapCss(pos.x, pos.y);
+    }
+    setTimeout(() => this.listEditors().catch(() => {}), 250);
+  }
+
+  async editorSuggest(query) {
+    // Workspace index only — never poke Cursor Quick Open while the user is typing.
+    const q = String(query || '').trim();
+    if (!q) {
+      this.emit({ t: 'editorSuggest', query: '', hits: [] });
+      return [];
+    }
+    const ws = workspaceForTitle(this.winTitle || '');
+    let hits = [];
+    if (ws) {
+      try { hits = await searchFiles(ws.host, ws.root, q, 24); } catch { hits = []; }
+    }
+    this.emit({ t: 'editorSuggest', query: q, hits });
+    return hits;
+  }
+
+  async editorOpen(query) {
+    const q = String(query || '').trim();
+    if (!q) throw new Error('Enter a file name (e.g. BUILD_PLAN.md)');
+    const hits = await this.quickOpen(q, { open: true });
+    if (!hits.length) throw new Error(`Nothing matched Quick Open for "${q}"`);
+    await new Promise(r => setTimeout(r, 400));
+    await this.listEditors();
+    // Also load preview into the phone pane when it looks like a file path.
+    const preview = hits[0]?.dir ? `${hits[0].dir}/${hits[0].name}` : (hits[0]?.name || q);
+    if (/\.\w+$/.test(q) || preview) {
+      try { await this.openFile(preview); } catch { /* tab sync is enough */ }
     }
   }
 
@@ -1067,9 +1219,24 @@ class Session {
     }
     if (this.winTitle === 'Cursor Agents') {
       // The Agents window mixes projects, so try recently opened folders.
-      for (const w of workspaces().slice(0, 8)) {
-        const hit = await tryPath(w.host, isAbs ? p : path.posix.join(w.root, p));
+      for (const w of workspaces().slice(0, 12)) {
+        const hit = await tryPath(w.host, isAbs ? p : path.posix.join(w.root.replace(/\\/g, '/'), p));
         if (hit) return hit;
+      }
+      // Basename search across recent workspaces (BUILD_PLAN.md, etc.).
+      const base = path.posix.basename(p);
+      for (const w of workspaces().slice(0, 8)) {
+        try {
+          const found = await searchFiles(w.host, w.root, base, 8);
+          const best = found.find(h => h.name === base) || found[0];
+          if (best?.path) {
+            const abs = best.path.startsWith('/') || /^[a-zA-Z]:/.test(best.path)
+              ? best.path
+              : path.posix.join(w.root.replace(/\\/g, '/'), best.path);
+            const hit = await tryPath(w.host, abs);
+            if (hit) return hit;
+          }
+        } catch { /* next workspace */ }
       }
       throw new Error(`File not found (it may have been deleted or moved): ${p}`);
     }
@@ -1364,6 +1531,11 @@ class Session {
       case 'newChat': return this.pressControl('newChat');
       case 'file': return this.openFile(String(msg.path ?? ''));
       case 'diff': return this.openDiff(String(msg.path ?? msg.name ?? ''));
+      case 'editors': return this.listEditors();
+      case 'editorSuggest': return this.editorSuggest(String(msg.query ?? ''));
+      case 'editorFocus': return this.editorFocus(String(msg.name ?? ''));
+      case 'editorClose': return this.editorClose(String(msg.name ?? ''));
+      case 'editorOpen': return this.editorOpen(String(msg.query ?? msg.path ?? msg.name ?? ''));
       case 'clipboard': return this.pushClipboard(String(msg.text ?? ''));
       case 'click': return this.clickButton(msg.item, msg.n);
       case 'queue': return msg.action === 'edit' ? this.editQueued(msg.id, String(msg.text ?? '')) : this.queueAction(msg.id, msg.action);

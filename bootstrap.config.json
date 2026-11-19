@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "project_name": "cursor-remote-lite",
+  "purpose": "Free MIT fork of Suchenl/cursor-remote-lite — phone/tablet remote control for Cursor with tray packaging, tablet dual-pane, clipboard, multi-device lock, and in-app updates.",
+  "stack": "node",
+  "license": "MIT",
+  "distribution_tier": "foss",
+  "parent_template": "edwardlthompson/agent-project-bootstrap",
+  "parent_template_version": "1.13.1",
+  "agent_adapters": {
+    "cursor_rules": true,
+    "claude": false,
+    "copilot": false,
+    "gemini": false,
+    "windsurf": false,
+    "cline": false,
+    "aider": false,
+    "continue": false
+  },
+  "security": {
+    "dependabot": true,
+    "code_scanning": false,
+    "secret_detection": false
+  },
+  "hooks": {
+    "preflight": false,
+    "post_sync_adapters": false,
+    "post_checklist": false
+  }
+}

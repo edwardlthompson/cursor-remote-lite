@@ -15,10 +15,21 @@ const STORAGE_DIRS = {
   win32: `${process.env.APPDATA}/Cursor/User/workspaceStorage`,
 };
 
+/** Normalize Cursor/VS Code folder paths (file:///c:/Users/... → c:/Users/...). */
+export function normalizeFsPath(p) {
+  let s = String(p || '').replace(/^~(?=\/)/, os.homedir());
+  if (process.platform === 'win32') {
+    // URL pathname form: /c:/Users/... or /C|/Users/...
+    s = s.replace(/^\/([a-zA-Z])[:|]\//, '$1:/');
+    s = s.replace(/^\/([a-zA-Z]):/, '$1:');
+  }
+  return s;
+}
+
 // vscode-remote://ssh-remote+<host or hex-encoded {"hostName":...}>/path
 function parseFolderUri(uri) {
   const u = new URL(uri);
-  if (u.protocol === 'file:') return { host: null, root: decodeURIComponent(u.pathname) };
+  if (u.protocol === 'file:') return { host: null, root: normalizeFsPath(decodeURIComponent(u.pathname)) };
   if (u.protocol !== 'vscode-remote:') return null;
   const authority = decodeURIComponent(u.host);
   const m = /^ssh-remote\+(.+)$/.exec(authority);
@@ -130,7 +141,7 @@ export async function readFile(host, p, size) {
 const DIFF_LIMIT = 200 * 1024;
 
 function localAbs(p) {
-  return p.replace(/^~(?=\/)/, os.homedir());
+  return normalizeFsPath(p);
 }
 
 /** Unified diff for a workspace file (git). Falls back to full content for untracked files. */
@@ -208,9 +219,61 @@ function runLocal(args) {
 
 // "src/a.py:12", "a.py#L12-20", "a.py (lines 3-9)" → path + first line.
 export function parseRef(text) {
-  let s = String(text).trim().replace(/^[`'"]+|[`'",;:.)]+$/g, '');
+  let s = String(text).replace(/[\u200e\u200f\ufeff\u2066-\u2069]/g, '').trim().replace(/^[`'"]+|[`'",;:.)]+$/g, '');
   let line = null;
   const m = /(?::(\d+)(?::\d+)?(?:-\d+)?|#L(\d+)(?:-L?\d+)?)$/.exec(s);
   if (m) { line = Number(m[1] || m[2]); s = s.slice(0, m.index); }
   return { p: s, line };
+}
+
+/** Ranked workspace file hits for the dual-pane Open… picker (git index + untracked). */
+export async function searchFiles(host, root, query, limit = 24) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q || !root) return [];
+  const max = Math.min(40, Math.max(1, Number(limit) || 24));
+  let listing = '';
+  if (!host) {
+    const abs = localAbs(root);
+    listing = await runLocal(['git', '-C', abs, 'ls-files', '-co', '--exclude-standard']).catch(() => '');
+    if (!listing.trim()) {
+      // Non-git folder: shallow walk of a few levels.
+      try {
+        const walk = (dir, depth, acc) => {
+          if (depth > 4 || acc.length > 4000) return;
+          for (const name of fs.readdirSync(dir)) {
+            if (name === 'node_modules' || name === '.git' || name === 'dist' || name.startsWith('.')) continue;
+            const full = path.join(dir, name);
+            let st;
+            try { st = fs.statSync(full); } catch { continue; }
+            if (st.isDirectory()) walk(full, depth + 1, acc);
+            else acc.push(path.relative(abs, full).split(path.sep).join('/'));
+          }
+        };
+        const acc = [];
+        walk(abs, 0, acc);
+        listing = acc.join('\n');
+      } catch { listing = ''; }
+    }
+  } else {
+    const rq = remotePath(root);
+    listing = (await ssh(host,
+      `git -C ${rq} ls-files -co --exclude-standard 2>/dev/null | head -n 8000`, 512 * 1024)
+      .catch(() => Buffer.alloc(0))).toString('utf8');
+  }
+  const rows = listing.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const scored = [];
+  for (const rel of rows) {
+    const base = path.posix.basename(rel).toLowerCase();
+    const full = rel.toLowerCase();
+    if (!base.includes(q) && !full.includes(q)) continue;
+    let score = 100;
+    if (base === q) score = 0;
+    else if (base.startsWith(q)) score = 1;
+    else if (base.includes(q)) score = 2;
+    else if (full.endsWith('/' + q) || full.endsWith(q)) score = 3;
+    else score = 4 + Math.min(20, full.indexOf(q));
+    scored.push({ score, name: path.posix.basename(rel), dir: path.posix.dirname(rel) === '.' ? '' : path.posix.dirname(rel), path: rel });
+  }
+  scored.sort((a, b) => a.score - b.score || a.path.length - b.path.length || a.path.localeCompare(b.path));
+  return scored.slice(0, max).map(({ name, dir, path: p }) => ({ name, dir, path: p }));
 }

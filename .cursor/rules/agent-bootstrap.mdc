@@ -1,0 +1,10 @@
+---
+description: Bootstrap-child slash commands and board for cursor-remote-lite
+alwaysApply: true
+---
+
+This repo is a **child of edwardlthompson/agent-project-bootstrap** (see `.template-version`, `bootstrap.config.json`).
+
+When the user types `/` recipes, follow `docs/help/BATCH_COMMANDS.md`. Prefer `/tour`, `/coach`, `/verify`, `/build`, `/ship`, `/bootstrap`.
+
+Live work board: `BUILD_PLAN.md`. Gaps vs upstream + template: `docs/GAP_LIST.md`. Do not treat Suchenl/cursor-remote-lite as writable upstream.

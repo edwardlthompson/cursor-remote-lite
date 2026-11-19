@@ -27,7 +27,26 @@ test('app has clipboard buttons and tablet-dash layout', () => {
   assert.match(app, /id="clipPush"/);
   assert.match(app, /id="clipPull"/);
   assert.match(app, /tablet-dash/);
-  assert.match(app, /id="dashStrip"/);
-  assert.match(app, /id="dashSide"/);
+  assert.match(app, /id="paneView"/);
+  assert.match(app, /id="tabPane"/);
+  assert.match(app, /id="tabFiles"/);
+  assert.match(app, /id="paneSplit"/);
   assert.match(app, /syncTabletDash/);
+  assert.match(app, /--dual-split/);
+});
+
+test('Dual pane editor sync and file picker suggest exist', () => {
+  assert.match(server, /editorTabs/);
+  assert.match(server, /ui-tab-system-tab/);
+  assert.match(server, /changeCards|ui-card__title/);
+  assert.match(server, /editorOpen/);
+  assert.match(server, /editorClose/);
+  assert.match(server, /editorSuggest/);
+  assert.match(server, /searchFiles/);
+  assert.match(app, /id="paneTabStrip"/);
+  assert.match(app, /id="paneOpen"/);
+  assert.match(app, /id="panePickHits"/);
+  assert.match(app, /renderEditorTabs/);
+  assert.match(app, /syncActiveEditorContent/);
+  assert.match(app, /renderPaneSuggestions/);
 });

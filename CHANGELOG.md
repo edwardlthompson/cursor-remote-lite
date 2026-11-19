@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.9.0
+
+- **Dual pane layout**: **Chat | Dual pane | Files | Screen** — left / both (draggable split) / right / desktop Screen on any landscape device.
+- **Editor sync**: open Cursor tabs (Agents `ui-tab-system-tab`) appear in the pane; focus/close both ways; Open… lists open editors + workspace typeahead.
+- **Markdown Preview/Source** toggle for `.md` files in the Files pane.
+- **Tablet density**: removed window-status strip, quick-prompt chips, post-turn file pills in chat, and the Changed-files/Diff footer on file preview.
+- **Windows path fix**: normalize VS Code `/c:/…` workspace roots so `BUILD_PLAN.md` and Open… resolve on Windows.
+- **Bootstrap child**: `BUILD_PLAN.md`, `docs/GAP_LIST.md`, slash recipes (`/tour` `/coach` `/verify` `/build` `/ship`), app icon in README.
+- Backlog: plan remote Windows/Linux Cursor control app.
+
 ## 1.8.3
 
 - **Android signing**: release APKs use a persistent GitHub Actions keystore (`KEYSTORE_B64`) so updates install over previous builds without uninstall.

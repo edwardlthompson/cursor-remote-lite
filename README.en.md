@@ -1,5 +1,9 @@
 **English** | [中文](README.zh.md)
 
+<p align="center">
+  <img src="docs/icon.png" width="128" height="128" alt="Cursor Remote Lite icon">
+</p>
+
 # Cursor Remote Lite
 
 **Leave your laptop behind and keep working.** Your computer stays on at home or at the office; with your **phone or tablet** you keep driving Cursor: give the Agent tasks, get notified when it finishes, answer questions, approve commands, review diffs, and keep or undo changed files — in local and SSH remote windows alike.
@@ -43,7 +47,7 @@ A tiny relay on your computer drives the real Cursor running there, and your pho
 - Read the Agent conversation like a chat app; messages sent while it's busy are queued automatically.
 - **Heads-up notifications with sound** when a turn finishes or when Run/Allow is waiting — Approve / Skip / Stop / Continue / Reply from the notification.
 - Review **git diffs**, Keep / Undo per file; paste phone clipboard into Cursor or pull a selection / code block back.
-- **Tablet landscape dashboard**: **Chat | Files | Screen** — in landscape, chat and the Files pane sit side-by-side (diffs inline); status strip for every window (idle / running / waiting).
+- **Dual pane layout**: **Chat | Dual pane | Files | Screen** — left only, both (draggable split), right only, or desktop Screen; editor tabs sync with Cursor.
 - Every window works: local, SSH remote, Agents; switch mode, model and reasoning effort anytime.
 - Optional **Telegram** (forum topics per window) and a free **Cursor extension** for setup/status.
 - Your code and chats stay on your computer; the phone reaches them over a Cloudflare tunnel (HTTPS), LAN, or localhost. Works on Android and iPhone, including networks in mainland China.
@@ -108,7 +112,7 @@ So this project provides both: an Android app that installs without Google servi
 - **Diff review**: tap a changed file for a unified git diff, then Keep / Undo / prev-next.
 - **Clipboard bridge**: paste phone clipboard → Cursor composer; pull selection or last code block → phone.
 - **Multi-device lock**: phone + tablet won’t double-Approve; banner + **Take control** (90s idle TTL).
-- **Tablet landscape dual pane** (≥900px): **Files** tab between Chat and Screen; chat + changed-files/diff side-by-side, plus window status strip.
+- **Dual pane** (landscape, any width): Chat / Dual / Files / Screen; draggable chat|files split; editor tabs synced with Cursor.
 - **Windows tray**: `CursorRemote.exe` / MSI runs in the system tray with Start with Windows, keep-awake, ADB pair, Quit (stops relay).
 - **Telegram** (optional): forum topic per Cursor window (`/sync`); waiting/done inline actions. See [docs/TELEGRAM.md](docs/TELEGRAM.md).
 - **Cursor / VS Code extension**: setup panel, status, network modes (tunnel / lan / localhost). See [docs/EXTENSION.md](docs/EXTENSION.md).

@@ -23,6 +23,7 @@
   button { padding: 6px 12px; white-space: nowrap; cursor: pointer; }
   button:active { filter: brightness(1.3); }
   button.on, button.primary { background: #0e639c; border-color: #1177bb; color: #fff; }
+  button.ghost { background: #2d2d2d; border-color: #3c3c3c; color: #ddd; font-weight: 400; }
   [hidden] { display: none !important; }
 
   header { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #252526; border-bottom: 1px solid #333; min-width: 0; }
@@ -32,7 +33,7 @@
   #title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #title::after { content: "▾"; color: #888; flex: none; }
   .seg { display: flex; flex: none; border: 1px solid #3c3c3c; border-radius: 8px; overflow: hidden; }
-  .seg button { border: none; border-radius: 0; padding: 5px 10px; background: #2d2d2d; }
+  .seg button { border: none; border-radius: 0; padding: 5px 7px; background: #2d2d2d; font-size: 12.5px; }
   .seg button.on { background: #0e639c; }
   #menuBtn { flex: none; padding: 5px 10px; }
 
@@ -66,6 +67,15 @@
   #actionBar { flex: none; display: none; gap: 8px; flex-wrap: wrap; padding: 8px 12px; background: #2a2d2e; border-top: 1px solid #333; }
   #actionBar.show { display: flex; }
   #actionBar button { flex: 1; padding: 9px; font-weight: 600; }
+  #actionBar button.stop-gen,
+  #queueBar button[data-stop],
+  .btns button.stop-gen {
+    background: #a1260d !important; border-color: #e03e2f !important; color: #fff !important; font-weight: 700;
+    box-shadow: 0 0 0 1px #ff6b5a55;
+  }
+  .assistant code { color: inherit; text-decoration: none; }
+  .assistant code[data-file], .tool[data-file] { cursor: default; text-decoration: none; color: inherit; }
+  .tool[data-file] .txt::before { content: none; }
   #queueBar { flex: none; display: none; flex-direction: column; gap: 6px; padding: 7px 12px; background: #23272e; border-top: 1px solid #333; max-height: 34vh; overflow-y: auto; }
   #queueBar.show { display: flex; }
   #qnBar { flex: none; display: none; flex-direction: column; gap: 8px; padding: 10px 12px; background: #2a2620; border-top: 2px solid #e5c07b; max-height: 48vh; overflow-y: auto; }
@@ -111,16 +121,14 @@
   #presenceBar { display: none; align-items: center; gap: 8px; padding: 6px 8px; margin: 0 -2px; border-radius: 8px; background: #3a2f1a; border: 1px solid #6b5420; font-size: 12.5px; color: #f0d78c; }
   #presenceBar.show { display: flex; }
   #presenceBar button { flex: none; font-size: 12px; padding: 4px 10px; }
-  #quickPrompts { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; padding-bottom: 2px; }
-  #quickPrompts::-webkit-scrollbar { display: none; }
-  #quickPrompts button { font-size: 12px; padding: 4px 10px; border-radius: 14px; flex: none; white-space: nowrap; background: #2d2d30; color: #ccc; }
-  #quickPrompts button.qp-add { color: #8ec7ff; border-style: dashed; }
+  /* Quick-prompt chips removed — use slash / recipes instead; frees footer space. */
+  #quickPrompts { display: none !important; }
   #chatTools { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
   #chatTools::-webkit-scrollbar { display: none; }
   #chatTools button { font-size: 12.5px; padding: 3px 10px; border-radius: 14px; flex: none; white-space: nowrap; }
   #chatTools #pickModel { flex: 0 1 auto; min-width: 84px; overflow: hidden; text-overflow: ellipsis; }
   .row { display: flex; gap: 8px; min-width: 0; align-items: flex-end; }
-  footer.locked .row, footer.locked #quickPrompts, footer.locked #chatTools { opacity: 0.45; pointer-events: none; }
+  footer.locked .row, footer.locked #chatTools { opacity: 0.45; pointer-events: none; }
   #diffView, #paneDiffBody { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 55dvh; overflow: auto; background: #1e1e1e; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
   #diffView .add, #paneDiffBody .add { color: #73c991; }
   #diffView .del, #paneDiffBody .del { color: #f14c4c; }
@@ -170,9 +178,8 @@
   a.opt { color: #e6e6e6; text-decoration: none; background: #2d2d2d; border: 1px solid #3c3c3c; border-radius: 8px; box-sizing: border-box; }
 
   /* file links + viewer */
-  .assistant code[data-file], .tool[data-file] { cursor: pointer; }
-  .assistant code[data-file] { color: #6cb6ff; text-decoration: underline; text-decoration-color: #6cb6ff66; text-underline-offset: 2px; }
-  .tool[data-file] .txt::before { content: "📄 "; }
+  /* No file chips/links in chat */
+  .assistant code, .assistant a { color: inherit !important; text-decoration: none !important; cursor: inherit !important; }
   #viewer { position: fixed; inset: 0; z-index: 25; background: #1e1e1e; display: none; flex-direction: column;
             padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
   #viewer.open { display: flex; }
@@ -205,19 +212,32 @@
 
   /* clipboard + tablet dashboard */
   #clipPush, #clipPull { flex: none; height: 40px; width: 40px; padding: 0; display: flex; align-items: center; justify-content: center; color: #bbb; }
-  #dashStrip { display: none; flex: none; gap: 6px; padding: 6px 10px; overflow-x: auto; background: #222; border-bottom: 1px solid #333; scrollbar-width: none; }
-  #dashStrip::-webkit-scrollbar { display: none; }
-  #dashStrip .dw { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 10px; border-radius: 8px; border: 1px solid #3c3c3c; background: #2d2d2d; max-width: 200px; text-align: left; }
-  #dashStrip .dw.cur { border-color: #1177bb; }
-  #dashStrip .dw .dn { font-size: 12.5px; color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
-  #dashStrip .dw .ds { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .04em; }
-  #dashStrip .dw.running .ds { color: #4af; }
-  #dashStrip .dw.waiting .ds { color: #e5c07b; }
-  #dashStrip .dw.idle .ds { color: #6a6; }
+  /* Window status strip removed — reclaim vertical space for chat/files (switch windows via title). */
+  #dashStrip { display: none !important; }
 
-  /* Files pane — same chrome as chat (scrollable list + empty state) */
+  /* Files pane — editor tabs + changed files (chat-like chrome) */
+  #paneTabStrip { flex: none; display: flex; gap: 4px; padding: 6px 8px; overflow-x: auto; scrollbar-width: none; background: #252526; border-bottom: 1px solid #333; min-width: 0; align-items: center; }
+  #paneTabStrip::-webkit-scrollbar { display: none; }
+  #paneTabStrip .et { flex: none; max-width: 140px; padding: 5px 8px; font-size: 12.5px; border-radius: 6px; display: flex; align-items: center; gap: 4px; background: #2d2d2d; }
+  #paneTabStrip .et.on { background: #0e639c; border-color: #1177bb; color: #fff; }
+  #paneTabStrip .et .en { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
+  #paneTabStrip .et .ex { flex: none; padding: 0 4px; border: none; background: transparent; color: #aaa; font-size: 14px; }
+  #paneTabStrip .et.on .ex { color: #cde; }
+  #paneOpen { flex: none; padding: 5px 10px; font-size: 12.5px; }
   #paneFiles { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 12px 16px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; min-height: 0; }
-  #paneFiles .dh { font-size: 13px; color: #aaa; font-weight: 600; margin: 0 0 10px; padding: 0 2px; }
+  #paneFiles .dh { font-size: 13px; color: #aaa; font-weight: 600; margin: 0 0 10px; padding: 0 2px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  #panePicker { display: none; flex: none; flex-direction: column; gap: 0; padding: 0; border-bottom: 1px solid #333; background: #222; }
+  #panePicker.show { display: flex; }
+  #panePicker .ppRow { display: flex; gap: 6px; padding: 8px 10px; }
+  #panePicker input { flex: 1; min-width: 0; font-size: 16px; padding: 8px 10px; }
+  #panePicker .ppRow > button { flex: none; padding: 8px 12px; }
+  #panePickHits { display: none; max-height: min(42dvh, 280px); overflow-y: auto; border-top: 1px solid #333; -webkit-overflow-scrolling: touch; }
+  #panePickHits.show { display: block; }
+  #panePickHits button { display: block; width: 100%; text-align: left; padding: 10px 12px; border: none; border-bottom: 1px solid #2a2a2a; border-radius: 0; background: transparent; color: #ddd; font-size: 14px; }
+  #panePickHits button:active { background: #333; }
+  #panePickHits .hn { color: #eee; }
+  #panePickHits .hd { display: block; font-size: 11px; color: #888; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #panePickHits .empty { padding: 12px; color: #888; font-size: 13px; }
   #dashChanges .dc { display: flex; gap: 6px; align-items: stretch; margin-bottom: 8px; }
   #dashChanges .dc .opt { margin-bottom: 0; flex: 1; text-align: left; }
   #dashEmpty { color: #888; text-align: center; margin-top: 22vh; padding: 0 20px; line-height: 1.6; }
@@ -227,17 +247,60 @@
   #paneDiff .pdHead { flex: none; display: flex; align-items: center; gap: 8px; min-width: 0; }
   #paneDiff .pdHead #paneDiffBack { flex: none; padding: 5px 10px; }
   #paneDiff .pdHead h3 { flex: 1; min-width: 0; margin: 0; font-size: 14px; color: #eee; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #paneDiffBody { flex: 1; min-height: 0; max-height: none; margin-bottom: 0; background: #111; }
-  #paneDiff .pdAct { flex: none; display: flex; flex-wrap: wrap; gap: 8px; }
+  #paneMdMode { flex: none; display: none; border: 1px solid #3c3c3c; border-radius: 8px; overflow: hidden; }
+  #paneMdMode.show { display: flex; }
+  #paneMdMode button { border: none; border-radius: 0; padding: 5px 10px; font-size: 12px; background: #2d2d2d; }
+  #paneMdMode button.on { background: #0e639c; color: #fff; }
+  #paneDiffBody { flex: 1; min-height: 0; max-height: none; margin-bottom: 0; background: #111; overflow: auto; -webkit-overflow-scrolling: touch; }
+  #paneDiffBody .code { font: 12px/1.5 ui-monospace, Menlo, monospace; padding: 6px 0 24px; min-width: max-content; }
+  #paneDiffBody .l { display: flex; white-space: pre; }
+  #paneDiffBody .l i { flex: none; width: 3.6em; padding-right: 10px; text-align: right; color: #5a5a5a; font-style: normal; user-select: none; -webkit-user-select: none; }
+  #paneDiffBody .l.hl { background: #264f7855; }
+  #paneDiffBody.md-preview { padding: 14px 16px 28px; font: 14.5px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #ddd; }
+  #paneDiffBody.md-preview h1, #paneDiffBody.md-preview h2, #paneDiffBody.md-preview h3 { color: #fff; margin: 1em 0 .45em; line-height: 1.3; }
+  #paneDiffBody.md-preview h1 { font-size: 1.55em; border-bottom: 1px solid #333; padding-bottom: .25em; }
+  #paneDiffBody.md-preview h2 { font-size: 1.3em; border-bottom: 1px solid #2a2a2a; padding-bottom: .2em; }
+  #paneDiffBody.md-preview h3 { font-size: 1.12em; }
+  #paneDiffBody.md-preview p { margin: 0 0 .75em; }
+  #paneDiffBody.md-preview ul, #paneDiffBody.md-preview ol { margin: 0 0 .75em; padding-left: 1.4em; }
+  #paneDiffBody.md-preview li { margin: .25em 0; }
+  #paneDiffBody.md-preview code { font: 12.5px/1.45 ui-monospace, Menlo, monospace; background: #1e1e1e; padding: 1px 5px; border-radius: 4px; }
+  #paneDiffBody.md-preview pre { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 0 0 .85em; }
+  #paneDiffBody.md-preview pre code { background: none; padding: 0; }
+  #paneDiffBody.md-preview blockquote { margin: 0 0 .75em; padding-left: 12px; border-left: 3px solid #555; color: #aaa; }
+  #paneDiffBody.md-preview a { color: #6cb6ff; }
+  #paneDiffBody.md-preview table { border-collapse: collapse; margin: 0 0 .85em; font-size: 13px; }
+  #paneDiffBody.md-preview th, #paneDiffBody.md-preview td { border: 1px solid #444; padding: 5px 8px; }
+  #paneDiffBody.md-preview hr { border: none; border-top: 1px solid #333; margin: 1em 0; }
+  #paneDiff .pdAct { flex: none; display: none; flex-wrap: wrap; gap: 8px; }
+  #paneDiff .pdAct.show { display: flex; }
   #paneDiff .pdAct button { flex: 1; min-width: 72px; padding: 8px 10px; }
 
-  /* ≥700px landscape covers Tab S7-class devices (incl. denser DPI / zoom) */
-  @media (orientation: landscape) and (min-width: 700px) {
-    body.tablet-dash > #dashStrip { display: flex; }
-    /* Chat + Files side-by-side (tablet-friendly Cursor layout) */
+  #paneSplit {
+    display: none;
+    touch-action: none;
+    cursor: col-resize;
+    background: #252526;
+    position: relative;
+    z-index: 3;
+  }
+  #paneSplit::after {
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px; height: 40px;
+    border-radius: 2px;
+    background: #666;
+  }
+  #paneSplit:active, #paneSplit.dragging { background: #333; }
+  #paneSplit:active::after, #paneSplit.dragging::after { background: #8ec7ff; }
+
+  /* Landscape: Dual pane → chat | drag handle | files; Files tab → full right pane */
+  @media (orientation: landscape) {
     body.tablet-dash.dual-pane main {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(280px, 42%);
+      grid-template-columns: minmax(0, var(--dual-split, 55%)) 14px minmax(160px, 1fr);
       gap: 0;
     }
     body.tablet-dash.dual-pane #chatView,
@@ -245,8 +308,16 @@
       position: relative; inset: auto; display: flex !important;
       min-width: 0; min-height: 0; height: 100%;
     }
+    body.tablet-dash.dual-pane #paneSplit {
+      display: block;
+      position: relative;
+      inset: auto;
+      width: 100%;
+      height: 100%;
+      min-width: 14px;
+    }
     body.tablet-dash.dual-pane #paneView {
-      border-left: 1px solid #333; background: #1e1e1e;
+      background: #1e1e1e;
     }
     body.tablet-dash.dual-pane #screenView { display: none !important; }
     body.tablet-dash.dual-pane #chatView { border-right: 0; }
@@ -259,7 +330,8 @@
   <button id="title"><span id="titleText">Connecting…</span></button>
   <div class="seg">
     <button id="tabChat" class="on">Chat</button>
-    <button id="tabPane">Files</button>
+    <button id="tabPane">Dual pane</button>
+    <button id="tabFiles">Files</button>
     <button id="tabScreen">Screen</button>
   </div>
   <button id="menuBtn">⋯</button>
@@ -280,15 +352,32 @@
     <div id="actionBar"></div>
   </section>
 
-  <section id="paneView" class="view" aria-label="Changed files">
+  <div id="paneSplit" role="separator" aria-orientation="vertical" aria-label="Resize panes" title="Drag to resize"></div>
+
+  <section id="paneView" class="view" aria-label="Files">
+    <div id="paneTabStrip" aria-label="Open editors">
+      <button type="button" id="paneOpen" title="Open file in Cursor">Open…</button>
+    </div>
+    <div id="panePicker">
+      <div class="ppRow">
+        <input id="panePickInput" placeholder="Search files…" enterkeyhint="go" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="search">
+        <button type="button" id="panePickGo">Open</button>
+        <button type="button" id="panePickCancel" class="ghost">Cancel</button>
+      </div>
+      <div id="panePickHits" role="listbox" aria-label="File suggestions"></div>
+    </div>
     <div id="paneFiles">
-      <div class="dh">Changed files</div>
-      <div id="dashChanges"><div id="dashEmpty">No pending changes.<br>When the Agent edits files, they show up here — same Keep / Undo as on the desktop.</div></div>
+      <div class="dh"><span>Changed files</span></div>
+      <div id="dashChanges"><div id="dashEmpty">No pending changes.<br>Open… searches the workspace; tabs sync both ways with Cursor.</div></div>
     </div>
     <div id="paneDiff">
       <div class="pdHead">
         <button type="button" id="paneDiffBack">←</button>
         <h3 id="paneDiffTitle">Diff</h3>
+        <div id="paneMdMode" aria-label="Markdown view">
+          <button type="button" id="paneMdPreview" class="on">Preview</button>
+          <button type="button" id="paneMdSource">Source</button>
+        </div>
       </div>
       <div id="paneDiffBody"></div>
       <div class="pdAct" id="paneDiffAct"></div>
@@ -374,7 +463,10 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 let base = null, info = null, ws = null, authed = false, failures = 0;
-let mode = store.get('mode') || 'chat';
+let mode = (() => {
+  const m = store.get('mode');
+  return m === 'pane' || m === 'files' || m === 'screen' ? m : 'chat';
+})();
 let crop = store.get('crop') !== 'full';
 let frame = { w: 1000, h: 800 }, panel = null, zoom = 1, tapMode = 'tap', rightNext = false;
 let windows = [], currentWindow = null;
@@ -664,6 +756,8 @@ function connect() {
     else if (m.t === 'changes') showChanges(m);
     else if (m.t === 'diff') showDiff(m);
     else if (m.t === 'file') showFile(m);
+    else if (m.t === 'editors') renderEditorTabs(m.tabs || []);
+    else if (m.t === 'editorSuggest') renderPaneSuggestions(m.query || '', m.hits || []);
     else if (m.t === 'presence') applyPresence(m);
     else if (m.t === 'dash') renderDash(m);
     else if (m.t === 'clipboard') onClipboardPull(m);
@@ -768,20 +862,220 @@ function showMenu(kind, items, max) {
 let changesCache = [];
 let changesActions = [];
 let lastDashChanged = -1;
-const isTabletLandscape = () => matchMedia('(orientation: landscape) and (min-width: 700px)').matches;
+const isLandscape = () => matchMedia('(orientation: landscape)').matches;
 
 function showPaneFiles() {
   $('paneView').classList.remove('diffing');
   $('paneDiff').classList.remove('show');
+  updateMdModeToggle(false);
 }
 function showPaneDiffUi() {
   $('paneView').classList.add('diffing');
   $('paneDiff').classList.add('show');
 }
 
+let editorTabsCache = [];
+let editorsTimer = null;
+let lastSyncedActive = store.get('paneTab') || '';
+let suggestTimer = null;
+let suggestSeq = 0;
+let pickHits = [];
+let paneFileCache = null; // last loaded file payload for Preview/Source toggle
+let mdPreviewMode = store.get('mdPreview') !== 'off'; // default Preview for markdown
+
+function inPaneMode() {
+  return mode === 'pane' || mode === 'files' || document.body.classList.contains('dual-pane');
+}
+function rememberPaneTab(name) {
+  lastSyncedActive = name || '';
+  store.set('paneTab', lastSyncedActive || null);
+}
+
+function syncActiveEditorContent(tabs, { force = false } = {}) {
+  if (!inPaneMode()) return;
+  const list = tabs || [];
+  // Prefer a selected *file* tab. Agents often marks Changes selected too — don't let it
+  // steal the pane every poll once the user (or sync) opened a real file.
+  const activeFile = list.find(t => t.active && !/^Changes$/i.test(t.name));
+  const active = activeFile
+    || list.find(t => t.active)
+    || list.find(t => !/^Changes$/i.test(t.name))
+    || list[0];
+  if (!active?.name) return;
+  if (!force && active.name === lastSyncedActive) return;
+  if (!force && lastSyncedActive && !/^Changes$/i.test(lastSyncedActive)
+      && list.some(t => t.name === lastSyncedActive)
+      && /^Changes$/i.test(active.name)) {
+    return;
+  }
+  rememberPaneTab(active.name);
+  if (/^Changes$/i.test(active.name)) {
+    showPaneFiles();
+    send({ t: 'changes' });
+    return;
+  }
+  // Load file preview into the dual/files pane (Cursor → phone).
+  send({ t: 'file', path: active.name });
+}
+
+function renderEditorTabs(tabs) {
+  editorTabsCache = tabs || [];
+  // Keep Open… picker in sync when it is visible.
+  if ($('panePicker')?.classList.contains('show') && !($('panePickInput').value || '').trim()) {
+    showOpenEditorSuggestions();
+  }
+  const strip = $('paneTabStrip');
+  if (!strip) return;
+  const openBtn = $('paneOpen');
+  strip.querySelectorAll('.et').forEach(el => el.remove());
+  for (const t of editorTabsCache) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'et' + (t.active ? ' on' : '');
+    b.title = t.label || t.name;
+    b.innerHTML = `<span class="en">${esc((t.dirty ? '● ' : '') + t.name)}</span><span class="ex" data-close="${esc(t.name)}" aria-label="Close">×</span>`;
+    b.onclick = e => {
+      if (e.target.closest('[data-close]')) {
+        status('Closing…');
+        if (lastSyncedActive === t.name) lastSyncedActive = '';
+        return send({ t: 'editorClose', name: t.name });
+      }
+      // Phone → Cursor focus + local preview (both ways).
+      rememberPaneTab(t.name);
+      status('Switching tab…');
+      send({ t: 'editorFocus', name: t.name });
+      if (/^Changes$/i.test(t.name)) {
+        showPaneFiles();
+        send({ t: 'changes' });
+      } else {
+        send({ t: 'file', path: t.name });
+      }
+    };
+    strip.insertBefore(b, openBtn);
+  }
+  syncActiveEditorContent(editorTabsCache);
+}
+function startEditorsPoll() {
+  clearInterval(editorsTimer);
+  editorsTimer = null;
+  if (!inPaneMode()) return;
+  send({ t: 'editors' });
+  editorsTimer = setInterval(() => {
+    if (!authed) return;
+    if (inPaneMode()) send({ t: 'editors' });
+  }, 2000);
+}
+function renderPaneSuggestions(query, hits) {
+  const box = $('panePickHits');
+  if (!box || !$('panePicker').classList.contains('show')) return;
+  // Ignore stale responses if the input moved on.
+  if (($('panePickInput').value || '').trim() !== (query || '').trim()) return;
+  if (!query.trim()) {
+    showOpenEditorSuggestions();
+    return;
+  }
+  // Prefer open-editor matches first, then workspace hits.
+  const q = query.toLowerCase();
+  const open = (editorTabsCache || [])
+    .filter(t => t.name && !/^Changes$/i.test(t.name) && t.name.toLowerCase().includes(q))
+    .map(t => ({ name: t.name, dir: 'Open in Cursor', path: t.name, open: true }));
+  const seen = new Set(open.map(h => h.path.toLowerCase()));
+  const rest = (hits || []).filter(h => {
+    const key = (h.path || h.name || '').toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  pickHits = [...open, ...rest];
+  box.classList.add('show');
+  if (!pickHits.length) {
+    box.innerHTML = '<div class="empty">No matches — try another name, or Open to use Cursor Quick Open</div>';
+    return;
+  }
+  box.innerHTML = pickHits.map((h, i) =>
+    `<button type="button" role="option" data-hi="${i}"><span class="hn">${esc(h.name)}</span>`
+    + (h.dir || h.path ? `<span class="hd">${esc(h.dir || h.path)}</span>` : '')
+    + `</button>`).join('');
+}
+function requestPaneSuggestions() {
+  const q = ($('panePickInput').value || '').trim();
+  clearTimeout(suggestTimer);
+  if (!q) {
+    showOpenEditorSuggestions();
+    return;
+  }
+  const seq = ++suggestSeq;
+  suggestTimer = setTimeout(() => {
+    if (seq !== suggestSeq || !authed) return;
+    send({ t: 'editorSuggest', query: q });
+  }, 180);
+}
+function showOpenEditorSuggestions() {
+  // Show desktop open tabs immediately in the picker (before typing).
+  const open = (editorTabsCache || []).filter(t => t.name && !/^Changes$/i.test(t.name));
+  const box = $('panePickHits');
+  if (!box || !$('panePicker').classList.contains('show')) return;
+  if (!open.length) {
+    box.classList.remove('show');
+    box.innerHTML = '<div class="empty">No open editors yet — type a file name to search the workspace</div>';
+    box.classList.add('show');
+    pickHits = [];
+    return;
+  }
+  pickHits = open.map(t => ({ name: t.name, dir: 'Open in Cursor', path: t.name, open: true }));
+  box.classList.add('show');
+  box.innerHTML = pickHits.map((h, i) =>
+    `<button type="button" role="option" data-hi="${i}"><span class="hn">${esc(h.name)}</span>`
+    + `<span class="hd">${esc(h.dir)}</span></button>`).join('');
+}
+function showPanePicker(on) {
+  $('panePicker').classList.toggle('show', on);
+  pickHits = [];
+  const hits = $('panePickHits');
+  hits.classList.remove('show');
+  hits.innerHTML = '';
+  if (on) {
+    $('panePickInput').value = '';
+    send({ t: 'editors' }); // refresh open tabs for the picker list
+    showOpenEditorSuggestions();
+    setTimeout(() => $('panePickInput').focus(), 50);
+  }
+}
+function openPanePickPath(pathOrQuery) {
+  const q = String(pathOrQuery || '').trim();
+  if (!q) return status('Enter a file name (e.g. BUILD_PLAN.md)', false);
+  showPanePicker(false);
+  lastSyncedActive = '';
+  status('Opening in Cursor…');
+  send({ t: 'editorOpen', query: q });
+}
+function submitPanePicker() {
+  const q = $('panePickInput').value.trim();
+  if (!q) return status('Enter a file name (e.g. BUILD_PLAN.md)', false);
+  // Prefer an exact basename / path hit from suggestions.
+  const hit = pickHits.find(h => h.path === q || h.name === q)
+    || (pickHits.length === 1 ? pickHits[0] : null);
+  openPanePickPath(hit?.path || q);
+}
+$('paneOpen').onclick = () => showPanePicker(true);
+$('panePickCancel').onclick = () => showPanePicker(false);
+$('panePickGo').onclick = () => submitPanePicker();
+$('panePickInput').onkeydown = e => {
+  if (e.key === 'Enter') { e.preventDefault(); submitPanePicker(); }
+  if (e.key === 'Escape') { e.preventDefault(); showPanePicker(false); }
+};
+$('panePickInput').oninput = () => requestPaneSuggestions();
+$('panePickHits').onclick = e => {
+  const b = e.target.closest('button[data-hi]');
+  if (!b) return;
+  const hit = pickHits[Number(b.dataset.hi)];
+  if (!hit) return;
+  openPanePickPath(hit.path || (hit.dir ? `${hit.dir}/${hit.name}` : hit.name));
+};
+
 function applyViews() {
-  // Landscape + Files → chat and Files pane side-by-side (tablet-friendly Cursor layout).
-  const dual = isTabletLandscape() && mode === 'pane';
+  // Chat = left only · Dual pane = both (landscape) · Files = right only · Screen = desktop.
+  const dual = isLandscape() && mode === 'pane';
   document.body.classList.toggle('dual-pane', dual);
   if (dual) {
     $('chatView').classList.add('active');
@@ -789,7 +1083,8 @@ function applyViews() {
     $('screenView').classList.remove('active');
   } else {
     $('chatView').classList.toggle('active', mode === 'chat');
-    $('paneView').classList.toggle('active', mode === 'pane');
+    // Portrait Dual pane falls back to full files pane (same as Files).
+    $('paneView').classList.toggle('active', mode === 'pane' || mode === 'files');
     $('screenView').classList.toggle('active', mode === 'screen');
   }
   $('chatTools').hidden = mode === 'screen';
@@ -803,7 +1098,7 @@ function showChanges(m) {
   renderDashChanges();
   if (!m.files.length) { if (sheetKind === 'changes' || sheetKind === 'diff') closeSheet(); return status('No pending changes'); }
   // Files pane already shows the list — skip the bottom sheet unless it is already open.
-  if ((mode === 'pane' || document.body.classList.contains('dual-pane')) && sheetKind !== 'changes' && sheetKind !== 'diff') return;
+  if (inPaneMode() && sheetKind !== 'changes' && sheetKind !== 'diff') return;
   openSheet('changes', `<h3>Files changed by the Agent (${m.files.length})</h3>`
     + (m.actions.length ? `<div class="pRow" style="margin-bottom:10px">${m.actions.map(a => `<button data-chbar="${esc(a)}">${esc(a)}</button>`).join('')}</div>` : '')
     + m.files.map((f, i) => `<div class="optRow"><button class="opt" data-chdiff="${esc(f.name)}" data-chi="${i}"><span class="lbl">${esc(f.name)}`
@@ -842,21 +1137,52 @@ function renderDash(m) {
 
 let dashTimer = null;
 function syncTabletDash() {
-  const on = isTabletLandscape();
+  const on = isLandscape();
   document.body.classList.toggle('tablet-dash', on);
   applyViews();
   clearInterval(dashTimer);
   dashTimer = null;
-  if (!authed) return;
-  if (mode === 'pane' || document.body.classList.contains('dual-pane')) send({ t: 'changes' });
-  if (!on) return;
-  send({ t: 'dash' });
-  dashTimer = setInterval(() => {
-    if (!authed) return;
-    send({ t: 'dash' });
-  }, 3000);
+  // Status strip removed — refresh editors + changed-files when Dual/Files is open.
+  if (authed && inPaneMode()) {
+    send({ t: 'changes' });
+    startEditorsPoll();
+  }
 }
-matchMedia('(orientation: landscape) and (min-width: 700px)').addEventListener('change', syncTabletDash);
+matchMedia('(orientation: landscape)').addEventListener('change', syncTabletDash);
+
+/* Draggable dual-pane divider */
+(() => {
+  const saved = Number(store.get('dualSplit'));
+  if (saved >= 28 && saved <= 72) document.body.style.setProperty('--dual-split', saved + '%');
+  const split = $('paneSplit');
+  let dragging = false;
+  const pos = e => (e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX);
+  const move = clientX => {
+    const main = document.querySelector('main');
+    if (!main) return;
+    const rect = main.getBoundingClientRect();
+    if (rect.width < 80) return;
+    let pct = ((clientX - rect.left) / rect.width) * 100;
+    pct = Math.max(28, Math.min(72, pct));
+    document.body.style.setProperty('--dual-split', pct + '%');
+    store.set('dualSplit', String(Math.round(pct)));
+  };
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    split.classList.remove('dragging');
+  };
+  split.addEventListener('pointerdown', e => {
+    if (!document.body.classList.contains('dual-pane')) return;
+    dragging = true;
+    split.classList.add('dragging');
+    split.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+  });
+  split.addEventListener('pointermove', e => { if (dragging) move(pos(e)); });
+  split.addEventListener('pointerup', end);
+  split.addEventListener('pointercancel', end);
+})();
 
 function formatDiffHtml(text) {
   return esc(text || '').split('\n').map(line => {
@@ -872,15 +1198,18 @@ function renderPaneDiff(m) {
   const prev = idx > 0 ? changesCache[idx - 1] : null;
   const next = idx >= 0 && idx < changesCache.length - 1 ? changesCache[idx + 1] : null;
   showPaneDiffUi();
+  updateMdModeToggle(false);
+  paneFileCache = null;
+  $('paneDiffBody').className = '';
   $('paneDiffTitle').textContent = (m.name || 'Diff') + (m.truncated ? ' (truncated)' : '');
+  // Keep Keep/Undo for diffs; hide the big Changed-files / Diff footer used on file preview.
   if (m.error) {
     $('paneDiffBody').innerHTML = `<div class="hint">${esc(m.error)}</div>`;
-    $('paneDiffAct').innerHTML = `<button data-chopen="${esc(m.name || '')}">Open preview</button>`
-      + (prev ? `<button data-chdiff="${esc(prev.name)}">← Prev</button>` : '')
-      + (next ? `<button data-chdiff="${esc(next.name)}">Next →</button>` : '');
+    $('paneDiffAct').innerHTML = '';
     return;
   }
   $('paneDiffBody').innerHTML = formatDiffHtml(m.text || '(empty)');
+  $('paneDiffAct').classList.add('show');
   $('paneDiffAct').innerHTML = (prev ? `<button data-chdiff="${esc(prev.name)}">← Prev</button>` : '')
     + (next ? `<button data-chdiff="${esc(next.name)}">Next →</button>` : '')
     + `<button data-ch="${Math.max(0, idx)}" data-name="${esc(m.name)}" data-act2="keep">Keep</button>`
@@ -890,8 +1219,8 @@ function renderPaneDiff(m) {
 function showDiff(m) {
   if (m.loading) return status('Loading diff…');
   status('');
-  // Prefer the Files pane (chat-format) when it is on screen.
-  if (mode === 'pane' || document.body.classList.contains('dual-pane')) {
+  // Prefer the Files pane when Dual pane / Files is on screen.
+  if (inPaneMode()) {
     if (sheetKind === 'diff' || sheetKind === 'changes') closeSheet();
     return renderPaneDiff(m);
   }
@@ -1227,22 +1556,36 @@ $('sheet').addEventListener('click', async e => {
 
 /* ---------- mode switching ---------- */
 function setMode(m) {
-  mode = m === 'pane' ? 'pane' : m === 'screen' ? 'screen' : 'chat';
+  mode = m === 'pane' ? 'pane' : m === 'files' ? 'files' : m === 'screen' ? 'screen' : 'chat';
   store.set('mode', mode);
   $('tabChat').classList.toggle('on', mode === 'chat');
   $('tabPane').classList.toggle('on', mode === 'pane');
+  $('tabFiles').classList.toggle('on', mode === 'files');
   $('tabScreen').classList.toggle('on', mode === 'screen');
   applyViews();
-  // Relay only distinguishes chat vs screen; Files keeps chat polling.
+  // Relay only distinguishes chat vs screen; Dual/Files keep chat polling.
   if (authed) send({ t: 'mode', mode: mode === 'screen' ? 'screen' : 'chat' });
   if (mode === 'screen') { layoutStage(); applyQuality(); }
-  if (mode === 'pane' || document.body.classList.contains('dual-pane')) {
-    showPaneFiles();
-    if (authed) send({ t: 'changes' });
+  if (inPaneMode()) {
+    // Keep whatever tab was open — do not reset to Changes when flipping Dual ↔ Files.
+    if (authed) {
+      startEditorsPoll();
+      if (lastSyncedActive && !/^Changes$/i.test(lastSyncedActive)) {
+        send({ t: 'file', path: lastSyncedActive });
+      } else if (paneFileCache?.name) {
+        renderPaneFile(paneFileCache);
+      } else {
+        send({ t: 'changes' });
+      }
+    }
+  } else {
+    clearInterval(editorsTimer);
+    editorsTimer = null;
   }
 }
 $('tabChat').onclick = () => setMode('chat');
 $('tabPane').onclick = () => setMode('pane');
+$('tabFiles').onclick = () => setMode('files');
 $('tabScreen').onclick = () => setMode('screen');
 
 /* ---------- chat view ---------- */
@@ -1250,8 +1593,11 @@ const list = $('list'), itemsEl = $('items');
 const cache = new Map();
 
 function buttonsHtml(labels, item) {
-  return labels.map((l, n) =>
-    `<button class="${PRIMARY.test(l) ? 'primary' : ''}" data-item="${esc(item)}" data-n="${n}">${esc(l)}</button>`).join('');
+  return labels.map((l, n) => {
+    const stop = /^(stop(\s+generation)?|停止)/i.test(l);
+    const cls = stop ? 'stop-gen' : (PRIMARY.test(l) ? 'primary' : '');
+    return `<button class="${cls}" data-item="${esc(item)}" data-n="${n}">${esc(l)}</button>`;
+  }).join('');
 }
 
 function renderItem(it) {
@@ -1259,13 +1605,20 @@ function renderItem(it) {
   el.className = 'msg ' + it.k;
   if (it.k === 'human') el.innerHTML = `<div class="bubble">${esc(it.t || '')}</div>`;
   // it.h comes from the whitelist sanitizer in server.mjs (pageHelpers.clean): plain tags only, text escaped.
-  else if (it.k === 'assistant') el.innerHTML = it.h || '';
+  else if (it.k === 'assistant') {
+    // Strip clickable file chips from chat HTML — open files via Dual pane / Files.
+    el.innerHTML = (it.h || '').replace(/\sdata-file="[^"]*"/g, '');
+  }
   else if (it.k === 'tool') {
     el.innerHTML = `<div class="txt">${esc(it.t || '')}</div>`;
-    if (it.f) el.dataset.file = it.f;
+    // Do not attach data-file — keeps tool rows from becoming file buttons.
   }
   else el.textContent = it.t || '';
-  if (it.b && it.k !== 'human') el.insertAdjacentHTML('beforeend', `<div class="btns">${buttonsHtml(it.b, it.i)}</div>`);
+  if (it.b && it.k !== 'human') {
+    // Drop file-name / Review pills that sometimes ride along after a turn.
+    const labels = it.b.filter(l => !/\.\w{1,12}$/.test(l) && !/^Review$/i.test(l));
+    if (labels.length) el.insertAdjacentHTML('beforeend', `<div class="btns">${buttonsHtml(labels, it.i)}</div>`);
+  }
   return el;
 }
 
@@ -1305,7 +1658,7 @@ function renderChat(chat) {
   $('actionBar').innerHTML = buttonsHtml(chat.global, 'g');
   $('actionBar').classList.toggle('show', chat.global.length > 0);
   renderQueue(chat.busy, chat.queued || [], chat.subagents || [], chat.readonly, chat.changed);
-  if ((mode === 'pane' || document.body.classList.contains('dual-pane')) && (chat?.changed || 0) !== lastDashChanged) {
+  if (inPaneMode() && (chat?.changed || 0) !== lastDashChanged) {
     lastDashChanged = chat?.changed || 0;
     send({ t: 'changes' });
   }
@@ -1365,7 +1718,7 @@ function renderQueue(busy, queued, subs = [], readonly = false, changed = 0) {
     if (subsOpen) html += subs.map(n => `<div class="q"><span class="qt sa">${esc(n)}</span>`
       + `<button data-sub="${esc(n)}" data-part="open">View</button><button data-sub="${esc(n)}" data-part="stop">Stop</button></div>`).join('');
   }
-  if (busy && !readonly) html += `<div class="run"><i></i><span>${queued.length ? 'Agent is running; the messages below are sent in order when this turn ends' : 'Agent is running; new messages will be queued'}</span><button data-stop>Stop</button></div>`;
+  if (busy && !readonly) html += `<div class="run"><i></i><span>${queued.length ? 'Agent is running; the messages below are sent in order when this turn ends' : 'Agent is running; new messages will be queued'}</span><button data-stop>Stop generation</button></div>`;
   if (queued.length) {
     html += `<div class="qh">Queued: ${queued.length}</div>`;
     html += queued.map(q => `<div class="q"><span class="qt">${esc(q.t || '(empty)')}</span>`
@@ -1373,7 +1726,7 @@ function renderQueue(busy, queued, subs = [], readonly = false, changed = 0) {
       + `<button data-q="${esc(q.id)}" data-a="send" title="Interrupt the current turn and send right away">Send now</button>`
       + `<button data-q="${esc(q.id)}" data-a="remove">Delete</button></div>`).join('');
   }
-  if (changed && !readonly) html += `<button class="qh fold" data-changes>${changed === 1 ? '1 file changed ›' : changed + ' files changed ›'}</button>`;
+  // Changed-files chip removed from chat — use Dual pane / Files instead.
   bar.innerHTML = html;
   bar.classList.toggle('show', Boolean(html));
 }
@@ -1397,10 +1750,9 @@ function editQueued(id) {
 $('queueBar').onclick = async e => {
   const b = e.target.closest('button');
   if (!b) return;
-  if ('changes' in b.dataset) { status('Loading changed files…'); return send({ t: 'changes' }); }
   if ('fold' in b.dataset) { subsOpen = !subsOpen; return renderQueue(lastChat?.busy, lastChat?.queued || [], lastChat?.subagents || [], lastChat?.readonly, lastChat?.changed); }
   if ('stop' in b.dataset) {
-    if (!await ask('Stop the Agent?\nWhatever it is doing in this turn will be interrupted.', 'Stop')) return;
+    if (!await ask('Stop generation?\nThe Agent’s current turn will be interrupted.', 'OK')) return;
     send({ t: 'stop' }); status('Agent stopped'); return;
   }
   if ('main' in b.dataset) { send({ t: 'mainChat' }); status('Returning to main chat…'); return; }
@@ -1427,12 +1779,18 @@ $('older').onclick = () => send({ t: 'scrollChat', dy: -900 });
 
 document.addEventListener('click', async e => {
   const b = e.target.closest('button[data-item]');
-  const f = !b && e.target.closest('#items [data-file]');
-  if (f) return openFile(f.dataset.file);
+  // Ignore legacy data-file taps in chat — use Dual pane / Files → Open…
   if (!b) return;
-  if (RISKY.test(b.textContent.trim()) && !await ask(`Really tap "${b.textContent.trim()}"?`, b.textContent.trim())) return;
+  const label = b.textContent.trim();
+  if (/^(stop(\s+generation)?|停止)/i.test(label)) {
+    if (!await ask('Stop generation?\nThe Agent’s current turn will be interrupted.', 'OK')) return;
+    send({ t: 'click', item: b.dataset.item, n: Number(b.dataset.n) });
+    status('Stopping…');
+    return;
+  }
+  if (RISKY.test(label) && !await ask(`Really tap "${label}"?`, 'OK')) return;
   send({ t: 'click', item: b.dataset.item, n: Number(b.dataset.n) });
-  status('Tapped: ' + b.textContent);
+  status('Tapped: ' + label);
 });
 
 $('pickMode').onclick = () => { status('Loading modes…'); send({ t: 'openMenu', kind: 'mode' }); };
@@ -1445,6 +1803,16 @@ $('vBody').classList.toggle('wrap', store.get('wrap') !== 'off');
 $('vWrap').classList.toggle('on', store.get('wrap') !== 'off');
 
 function openFile(ref) {
+  if (inPaneMode()) {
+    // Dual pane: preview stays in the right pane (synced with Cursor tabs).
+    lastSyncedActive = String(ref || '').split('/').pop() || lastSyncedActive;
+    showPaneDiffUi();
+    $('paneDiffTitle').textContent = String(ref || '').split('/').pop() || 'File';
+    $('paneDiffBody').innerHTML = '<div class="hint">Reading from the computer…</div>';
+    $('paneDiffAct').innerHTML = '';
+    send({ t: 'file', path: ref });
+    return;
+  }
   $('vName').textContent = ref.split('/').pop();
   $('vPath').textContent = '';
   $('vBody').innerHTML = '<div class="note">Reading from the computer…</div>';
@@ -1455,7 +1823,124 @@ function openFile(ref) {
   send({ t: 'file', path: ref });
 }
 
+function isMarkdownFile(name) {
+  return /\.(md|markdown|mdx)$/i.test(name || '');
+}
+
+/** Compact markdown → safe HTML for the Files pane Preview mode. */
+function renderMarkdown(src) {
+  const text = String(src || '').replace(/\r\n/g, '\n');
+  const fences = [];
+  let s = text.replace(/```([\w-]*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const i = fences.length;
+    fences.push(`<pre><code class="lang-${esc(lang || '')}">${esc(code.replace(/\n$/, ''))}</code></pre>`);
+    return `\u0000FENCE${i}\u0000`;
+  });
+  s = esc(s);
+  s = s.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>')
+    .replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>')
+    .replace(/^####\s+(.+)$/gm, '<h4>$1</h4>')
+    .replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
+    .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
+    .replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
+    .replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>')
+    .replace(/^---+$/gm, '<hr>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Lists
+  s = s.replace(/(?:^|\n)((?:[\t ]*[-*+]\s+.+\n?)+)/g, block => {
+    const items = block.trim().split('\n').map(l => l.replace(/^[\t ]*[-*+]\s+/, '')).filter(Boolean);
+    return '\n<ul>' + items.map(i => `<li>${i}</li>`).join('') + '</ul>\n';
+  });
+  s = s.replace(/(?:^|\n)((?:[\t ]*\d+\.\s+.+\n?)+)/g, block => {
+    const items = block.trim().split('\n').map(l => l.replace(/^[\t ]*\d+\.\s+/, '')).filter(Boolean);
+    return '\n<ol>' + items.map(i => `<li>${i}</li>`).join('') + '</ol>\n';
+  });
+  // Paragraphs for remaining plain lines
+  s = s.split(/\n{2,}/).map(chunk => {
+    const t = chunk.trim();
+    if (!t) return '';
+    if (/^<(h[1-6]|ul|ol|pre|blockquote|hr|table)\b/i.test(t)) return t;
+    if (t.includes('\u0000FENCE')) return t;
+    return `<p>${t.replace(/\n/g, '<br>')}</p>`;
+  }).join('\n');
+  s = s.replace(/\u0000FENCE(\d+)\u0000/g, (_, i) => fences[Number(i)] || '');
+  return s;
+}
+
+function updateMdModeToggle(show) {
+  const box = $('paneMdMode');
+  if (!box) return;
+  box.classList.toggle('show', !!show);
+  if (show) {
+    $('paneMdPreview').classList.toggle('on', mdPreviewMode);
+    $('paneMdSource').classList.toggle('on', !mdPreviewMode);
+  }
+}
+
+function renderPaneFile(m) {
+  showPaneDiffUi();
+  paneFileCache = m;
+  if (m.name) rememberPaneTab(m.name);
+  $('paneDiffTitle').textContent = (m.name || 'File') + (m.truncated ? ' (truncated)' : '');
+  $('paneDiffAct').classList.remove('show');
+  $('paneDiffAct').innerHTML = ''; // no Changed-files / Diff footer on file preview
+  const md = isMarkdownFile(m.name) && !m.image && !m.error;
+  updateMdModeToggle(md);
+  if (m.error) {
+    $('paneDiffBody').className = '';
+    $('paneDiffBody').innerHTML = `<div class="hint">${esc(m.error)}</div>`;
+    return;
+  }
+  if (m.image) {
+    updateMdModeToggle(false);
+    $('paneDiffBody').className = '';
+    $('paneDiffBody').innerHTML = '';
+    const img = new Image();
+    img.src = m.image;
+    img.style.maxWidth = '100%';
+    $('paneDiffBody').append(img);
+    return;
+  }
+  if (md && mdPreviewMode) {
+    $('paneDiffBody').className = 'md-preview';
+    $('paneDiffBody').innerHTML = renderMarkdown(m.text || '');
+    return;
+  }
+  $('paneDiffBody').className = '';
+  const lines = (m.text || '').replace(/\n$/, '').split('\n');
+  $('paneDiffBody').innerHTML = `<div class="code">${lines.map((l, n) =>
+    `<div class="l${n + 1 === m.line ? ' hl' : ''}"><i>${n + 1}</i>${esc(l) || ' '}</div>`).join('')}</div>`
+    + (m.truncated ? '<div class="hint">File too long; showing the first 512 KB</div>' : '');
+  if (m.line) $('paneDiffBody').querySelector('.hl')?.scrollIntoView({ block: 'center' });
+}
+$('paneMdPreview').onclick = () => {
+  mdPreviewMode = true;
+  store.set('mdPreview', null);
+  updateMdModeToggle(true);
+  if (paneFileCache) renderPaneFile(paneFileCache);
+};
+$('paneMdSource').onclick = () => {
+  mdPreviewMode = false;
+  store.set('mdPreview', 'off');
+  updateMdModeToggle(true);
+  if (paneFileCache) renderPaneFile(paneFileCache);
+};
+
 function showFile(m) {
+  if (inPaneMode()) {
+    if (m.loading) {
+      showPaneDiffUi();
+      $('paneDiffTitle').textContent = m.name || '…';
+      $('paneDiffBody').innerHTML = '<div class="hint">Reading from the computer…</div>';
+      $('paneDiffAct').innerHTML = '';
+      return;
+    }
+    if (m.name) lastSyncedActive = m.name;
+    return renderPaneFile(m);
+  }
   if (!$('viewer').classList.contains('open') || m.loading) return;
   $('vName').textContent = m.name || '';
   // Leading LRM keeps the rtl ellipsis from reordering the path's slashes.
@@ -1642,11 +2127,9 @@ function saveQuickPrompts(list) {
   store.set('quickPrompts', JSON.stringify(list.slice(0, 12)));
 }
 function renderQuickPrompts() {
-  const list = loadQuickPrompts();
+  // Chips removed from UI — slash recipes cover templated prompts.
   const el = $('quickPrompts');
-  el.innerHTML = list.map((p, i) =>
-    `<button type="button" data-qp="${i}" title="Long-press to edit">${esc(p.label || p.text)}</button>`).join('')
-    + `<button type="button" class="qp-add" data-qp-add title="Add quick prompt">+</button>`;
+  if (el) el.innerHTML = '';
 }
 renderQuickPrompts();
 $('quickPrompts').addEventListener('click', e => {

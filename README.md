@@ -1,5 +1,9 @@
 **English** | [中文](README.zh.md)
 
+<p align="center">
+  <img src="docs/icon.png" width="128" height="128" alt="Cursor Remote Lite icon">
+</p>
+
 # Cursor Remote Lite
 
 **Leave your laptop behind and keep working.** Your computer stays on at home or at the office; with your **phone or tablet** you keep driving Cursor: give the Agent tasks, get notified when it finishes, answer questions, approve commands, review diffs, and keep or undo changed files — in local and SSH remote windows alike.
@@ -19,6 +23,12 @@
 | <img src="docs/en/ui-chat.png" width="190" alt="Chat"> | <img src="docs/en/ui-file.png" width="190" alt="File preview"> | <img src="docs/en/ui-windows.png" width="190" alt="Switch window"> | <img src="docs/en/ui-model.png" width="190" alt="Pick model"> |
 | **Model parameters** | **Running: subagents + queue** | **Changed files** | **Confirm risky actions** |
 | <img src="docs/en/ui-params.png" width="190" alt="Model parameters"> | <img src="docs/en/ui-running.png" width="190" alt="Running: subagents and queued messages"> | <img src="docs/en/ui-changes.png" width="190" alt="Changed files"> | <img src="docs/en/ui-confirm.png" width="190" alt="Confirmation"> |
+
+### Tablet landscape (this fork)
+
+<p align="center"><img src="docs/en/ui-tablet-landscape.png" width="720" alt="Samsung tablet landscape: Chat | Dual pane | Screen, status strip, quick prompts"></p>
+
+<p align="center"><sub><b>Note — Dual pane:</b> In <b>landscape</b> on any device (phone or tablet), the header shows <b>Chat | Dual pane | Screen</b>. Tap <b>Dual pane</b> to toggle a side-by-side layout (chat left, editors/changes right) plus a window status strip (idle / running / waiting). Portrait keeps Dual pane as a full-screen side view. The pane lists Agent changes, opens workspace files (e.g. <code>BUILD_PLAN.md</code>), and keeps editor tabs in sync with Cursor on the PC.</sub></p>
 
 ## Why I built this
 
@@ -43,7 +53,7 @@ A tiny relay on your computer drives the real Cursor running there, and your pho
 - Read the Agent conversation like a chat app; messages sent while it's busy are queued automatically.
 - **Heads-up notifications with sound** when a turn finishes or when Run/Allow is waiting — Approve / Skip / Stop / Continue / Reply from the notification.
 - Review **git diffs**, Keep / Undo per file; paste phone clipboard into Cursor or pull a selection / code block back.
-- **Tablet landscape dashboard**: **Chat | Files | Screen** — in landscape, chat and the Files pane sit side-by-side (diffs inline); status strip for every window (idle / running / waiting).
+- **Dual pane layout**: **Chat | Dual pane | Files | Screen** — left / both (draggable split) / right / desktop Screen; editor tabs sync with Cursor; Open… lists open desktop files first.
 - Every window works: local, SSH remote, Agents; switch mode, model and reasoning effort anytime.
 - Optional **Telegram** (forum topics per window) and a free **Cursor extension** for setup/status.
 - Your code and chats stay on your computer; the phone reaches them over a Cloudflare tunnel (HTTPS), LAN, or localhost. Works on Android and iPhone, including networks in mainland China.
@@ -64,6 +74,23 @@ Data from [StatCounter](https://gs.statcounter.com/os-market-share/mobile/), whi
 So this project provides both: an Android app that installs without Google services, and a full-screen "Add to Home Screen" app on iPhone (no App Store listing needed, so it works in Europe too).
 
 ## How it compares
+
+### Vs the Suchenl upstream we forked
+
+| | **This fork** (`edwardlthompson/cursor-remote-lite`) | **Suchenl/cursor-remote-lite** |
+|---|---|---|
+| Windows host | **System-tray EXE/MSI**, Start with Windows, keep-awake, ADB pair | Manual Node / scripts |
+| Linux packages | **deb + tar.gz** on Releases | Manual |
+| Dual pane | **Chat \| Dual pane \| Screen** toggle (any landscape device), status strip, editor tabs | Phone-first layout |
+| Diffs | Unified **git diff** + Keep/Undo | Changed-file list / preview |
+| Clipboard | Phone ↔ Cursor **push/pull** | — |
+| Multi-device | **Control lock** + Take control | Shared session |
+| Android alerts | Heads-up **Finished / Needs OK** + sound; in-app GitHub update | SSE / basic |
+| Agent ops | **BUILD_PLAN**, slash commands, gap list (bootstrap child) | README |
+
+Full matrix: [`docs/GAP_LIST.md`](docs/GAP_LIST.md). Slash commands: type `/` → see [`docs/help/BATCH_COMMANDS.md`](docs/help/BATCH_COMMANDS.md).
+
+### Vs other options
 
 | | **This fork (Cursor Remote Lite)** | Cursor official iOS app | len5ky/CursorRemote | Remote desktop |
 |---|---|---|---|---|
@@ -108,7 +135,7 @@ So this project provides both: an Android app that installs without Google servi
 - **Diff review**: tap a changed file for a unified git diff, then Keep / Undo / prev-next.
 - **Clipboard bridge**: paste phone clipboard → Cursor composer; pull selection or last code block → phone.
 - **Multi-device lock**: phone + tablet won’t double-Approve; banner + **Take control** (90s idle TTL).
-- **Tablet landscape dual pane** (≥900px): **Files** tab between Chat and Screen; chat + changed-files/diff side-by-side, plus window status strip.
+- **Dual pane** (landscape, any width): toggle between Chat and Screen; chat + changed-files/diff side-by-side, editor tabs synced with Cursor, plus window status strip.
 - **Windows tray**: `CursorRemote.exe` / MSI runs in the system tray with Start with Windows, keep-awake, ADB pair, Quit (stops relay).
 - **Telegram** (optional): forum topic per Cursor window (`/sync`); waiting/done inline actions. See [docs/TELEGRAM.md](docs/TELEGRAM.md).
 - **Cursor / VS Code extension**: setup panel, status, network modes (tunnel / lan / localhost). See [docs/EXTENSION.md](docs/EXTENSION.md).

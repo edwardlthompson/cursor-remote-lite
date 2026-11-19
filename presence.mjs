@@ -62,8 +62,10 @@ export function canControl(winId, deviceId) {
 export const CONTROL_TYPES = new Set([
   'send', 'type', 'image', 'click', 'queue', 'stop', 'subagent', 'question',
   'change', 'changes', 'pickMenu', 'openMenu', 'toggleMax', 'params', 'pickParam',
-  'newChat', 'tap', 'key', 'wheel', 'file', 'mainChat', 'scrollChat', 'diff',
+  'newChat', 'tap', 'key', 'wheel', 'mainChat', 'scrollChat',
   'clipboard', // push only; pull is allowed without lock in handle()
+  // file / diff / editors / editorSuggest are read-only (disk / tab list) — dual-pane sync works without the lock
+  'editorOpen', 'editorFocus', 'editorClose',
 ]);
 
 export function snapshot(winId, selfId = null) {
