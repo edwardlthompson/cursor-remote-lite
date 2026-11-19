@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.9.2
+
+- **Android notifications**: detect/request `POST_NOTIFICATIONS` (was denied → app importance NONE, silent alerts); restart SSE listener on config refresh; test alerts use the high-importance channel; menu links to system notification settings.
+- **Composer drafts**: typed text persists per Cursor window across app switches and Dual/Files/Chat — restored when you come back (cleared on Send).
+
 ## 1.9.1
 
 - **Files reading-only**: hide composer / History on Files; `[hidden]` now actually hides (`display:flex` was winning).

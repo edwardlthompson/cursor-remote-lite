@@ -37,8 +37,8 @@ Goal: **Chat | Dual pane | Files | Screen** — max space for chat/files; editor
 - ✅ [AGENT] CDP helpers + WS: editors / focus / close / open / suggest
 - ✅ [AGENT] Dual pane UI: tab strip, Open… typeahead, active-tab preview; phone↔Cursor sync
 - ✅ [AGENT] Tablet density: hide window-status strip + quick-prompt chips; draggable dual divider; **Files** full-pane tab
-- ✅ [AGENT] SW v21 — Files reading-only; stop Changes poll stealing file preview; image attach
-- 🔲 [HUMAN] Confirm Files has no composer; open a tab and ensure it stays put
+- ✅ [AGENT] v1.9.2 — notify permission + SSE restart; composer drafts per window; UI 23
+- 🔲 [HUMAN] Allow notifications if prompted; ⋯ → test notification; draft text survives app switch
 
 ### Ship criteria
 

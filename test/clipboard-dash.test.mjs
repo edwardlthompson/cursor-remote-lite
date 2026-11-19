@@ -47,8 +47,10 @@ test('image attach uses file input + modern preview selectors', () => {
   assert.match(server, /DOM\.setFileInputFiles/);
   assert.match(server, /IMAGE_ATTACH_COUNT/);
   assert.match(app, /imageMime/);
-  assert.match(sw, /cursor-remote-v22/);
+  assert.match(sw, /cursor-remote-v23/);
   assert.match(sw, /cache: 'no-store'/);
+  assert.match(app, /draftKey|saveDraft|loadDraft/);
+  assert.match(app, /nativeNotifyAllowed|notificationsAllowed/);
 });
 
 test('Dual pane editor sync and file picker suggest exist', () => {

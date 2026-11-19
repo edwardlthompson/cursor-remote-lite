@@ -116,6 +116,8 @@ public class MainActivity extends Activity {
         }
         // Always keep a foreground service so the process (and WebSocket) survive Home / app switch.
         NotifyService.start(this);
+        // Android 13+: if the user already turned notifications on, re-prompt when permission is missing.
+        if (NotifyService.enabled(this) && !notificationsAllowed()) requestNotifyPermission();
     }
 
     // Do NOT call web.onPause() — that freezes JS timers and drops the relay WebSocket when the
@@ -234,11 +236,33 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void enableNotify(String config) {
-        prefs.edit().putString(NotifyService.PREF, config).apply();
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+    private boolean notificationsAllowed() {
+        return Build.VERSION.SDK_INT < 33
+                || checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestNotifyPermission() {
+        if (Build.VERSION.SDK_INT >= 33 && !notificationsAllowed()) {
             requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
+    }
+
+    private void openAppNotificationSettings() {
+        try {
+            Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+            startActivity(i);
+        } catch (Exception ignored) {
+            try {
+                startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + getPackageName())));
+            } catch (Exception ignored2) {}
+        }
+    }
+
+    private void enableNotify(String config) {
+        prefs.edit().putString(NotifyService.PREF, config).apply();
+        requestNotifyPermission();
         // Without this, stock Android may stop the listener after the phone has been idle for a while.
         PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
         if (!pm.isIgnoringBatteryOptimizations(getPackageName()) && !prefs.getBoolean("askedBattery", false)) {
@@ -248,6 +272,11 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
         NotifyService.start(this);
+        if (!notificationsAllowed()) {
+            Toast.makeText(this, NotifyService.tr(
+                    "请允许通知权限，否则收不到 Agent 完成提醒",
+                    "Allow notifications — otherwise Agent finished alerts will not appear"), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void disableNotify() {
@@ -255,6 +284,22 @@ public class MainActivity extends Activity {
         // Restart as keepalive-only (no Agent event stream) so the WebSocket process stays alive.
         stopService(new Intent(this, NotifyService.class));
         NotifyService.start(this);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != 1) return;
+        boolean ok = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        if (ok) {
+            NotifyService.start(this);
+            Toast.makeText(this, NotifyService.tr("通知已开启", "Notifications enabled"), Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, NotifyService.tr(
+                    "未授予通知权限，正在打开系统设置",
+                    "Notification permission denied — opening system settings"), Toast.LENGTH_LONG).show();
+            openAppNotificationSettings();
+        }
     }
 
     // cursorremote://pair?app=<https app address>&d=<url key>.<one-time code>, handed over by the web app in a browser.
@@ -367,6 +412,21 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean notifyEnabled() {
             return NotifyService.enabled(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public boolean notificationsAllowed() {
+            return MainActivity.this.notificationsAllowed();
+        }
+
+        @JavascriptInterface
+        public void requestNotifyPermission() {
+            runOnUiThread(MainActivity.this::requestNotifyPermission);
+        }
+
+        @JavascriptInterface
+        public void openNotificationSettings() {
+            runOnUiThread(MainActivity.this::openAppNotificationSettings);
         }
 
         // A notification tapped while the app was closed: the page asks for its window once it has connected.

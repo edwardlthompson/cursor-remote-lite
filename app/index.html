@@ -470,7 +470,7 @@
 <script src="i18n.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const UI_BUILD = 22; // bump when shell layout must force-refresh on phones
+const UI_BUILD = 23; // bump when shell layout must force-refresh on phones
 const PRIMARY = /^(run|allow|accept|approve|keep|continue|build|yes|运行|允许|接受|继续)/i;
 const store = {
   get: k => localStorage.getItem('cr-' + k),
@@ -766,9 +766,12 @@ function connect() {
     else if (m.t === 'panel') { panel = m.rect; layoutStage(); applyQuality(); }
     else if (m.t === 'windows') { windows = m.list; currentWindow = m.current; if (sheetKind === 'windows') showWindows(); }
     else if (m.t === 'attached') {
+      const prev = currentWindow || store.get('window') || '';
+      if (prev && prev !== m.id) saveDraft(prev);
       store.set('window', m.id);
       currentWindow = m.id;
       $('titleText').textContent = winLabel(m.title).name;
+      loadDraft(m.id);
       send({ t: 'windows' });
     }
     else if (m.t === 'menu') showMenu(m.kind, m.items, m.max);
@@ -1333,9 +1336,11 @@ async function showDevices() {
 }
 
 function showMainMenu() {
+  const permBlocked = nativeNotify() && !nativeNotifyAllowed();
   const notifyItem = notifyOn
-    ? `<button class="opt" data-act="notifyOff"><span class="lbl">Notifications: on<span class="sub">Alerts when the Agent finishes or needs your OK</span></span><span class="tag">Turn off</span></button>
-       <button class="opt" data-act="notifyTest"><span class="lbl">Send a test notification</span></button>`
+    ? `<button class="opt" data-act="notifyOff"><span class="lbl">Notifications: on${permBlocked ? ' (blocked by Android)' : ''}<span class="sub">Alerts when the Agent finishes or needs your OK</span></span><span class="tag">Turn off</span></button>
+       <button class="opt" data-act="notifyTest"><span class="lbl">Send a test notification</span></button>
+       ${permBlocked || nativeNotify() ? '<button class="opt" data-act="notifySettings"><span class="lbl">Open Android notification settings<span class="sub">Permission must be Allow, not Don’t allow</span></span></button>' : ''}`
     : `<button class="opt" data-act="notifyOn"><span class="lbl">Turn on notifications<span class="sub">Alerts when the Agent finishes or needs your OK</span></span></button>`;
   const update = apkUpdate()
     ? `<button class="opt" data-act="appUpdate"><span class="lbl">Update the Android app (v${esc(appVersion)} → v${esc(apkUpdate())})</span><span class="tag">New</span></button>`
@@ -1428,12 +1433,22 @@ const swReady = () => Promise.race([navigator.serviceWorker.ready, sleep(5000).t
 const pushSub = async () => webPush() ? (await swReady()).pushManager.getSubscription() : null;
 const nativeConfig = () => JSON.stringify({ app: appAddress(), key: store.get('key') || '', token: store.get('token') || '' });
 
+function nativeNotifyAllowed() {
+  try { return window.CursorRemoteApp?.notificationsAllowed?.() !== false; } catch { return true; }
+}
+
 // After every connect: refresh the menu state and re-register, since re-pairing gives the device a new id.
 async function syncNotify() {
   try {
     if (nativeNotify()) {
       notifyOn = window.CursorRemoteApp.notifyEnabled();
-      if (notifyOn) window.CursorRemoteApp.setNotify(nativeConfig());
+      if (notifyOn) {
+        window.CursorRemoteApp.setNotify(nativeConfig());
+        if (!nativeNotifyAllowed()) {
+          window.CursorRemoteApp.requestNotifyPermission?.();
+          status('Notifications are blocked by Android — allow the permission prompt (or ⋯ → Turn on notifications)', false);
+        }
+      }
       return;
     }
     const sub = await pushSub();
@@ -1446,6 +1461,10 @@ async function enableNotify() {
   if (nativeNotify()) {
     window.CursorRemoteApp.setNotify(nativeConfig());
     notifyOn = true;
+    if (!nativeNotifyAllowed()) {
+      window.CursorRemoteApp.requestNotifyPermission?.();
+      return status('Allow notifications in the system prompt — alerts stay silent until that is granted', false);
+    }
     return status('Notifications are on. On Huawei and similar phones, allow background activity in Settings → App launch.');
   }
   if (inApp) return status('Update the Android app from the menu first; notifications need the new version', false);
@@ -1600,8 +1619,22 @@ $('sheet').addEventListener('click', async e => {
   else if (act === 'notifyOff') { closeSheet(); disableNotify(); }
   else if (act === 'notifyTest') {
     closeSheet();
+    if (nativeNotify() && !nativeNotifyAllowed()) {
+      window.CursorRemoteApp.requestNotifyPermission?.();
+      return status('Allow notification permission first — Android is blocking alerts', false);
+    }
+    if (nativeNotify() && !window.CursorRemoteApp.notifyEnabled()) {
+      return status('Turn on notifications in the menu first', false);
+    }
+    // Refresh SSE listener config before the test event.
+    if (nativeNotify()) window.CursorRemoteApp.setNotify(nativeConfig());
     const r = await post('/api/push/test').catch(() => null);
-    status(r?.ok ? 'Test notification sent; it should arrive within seconds' : 'Send failed', Boolean(r?.ok));
+    if (r?.ok) status('Test notification sent; it should arrive within a few seconds');
+    else status('Send failed — check that notifications are on and the phone can reach the relay', false);
+  }
+  else if (act === 'notifySettings') {
+    closeSheet();
+    window.CursorRemoteApp?.openNotificationSettings?.();
   }
   else if (act === 'appUpdate') {
     closeSheet();
@@ -1649,6 +1682,7 @@ $('sheet').addEventListener('click', async e => {
 
 /* ---------- mode switching ---------- */
 function setMode(m) {
+  saveDraft();
   mode = m === 'pane' ? 'pane' : m === 'files' ? 'files' : m === 'screen' ? 'screen' : 'chat';
   store.set('mode', mode);
   $('tabChat').classList.toggle('on', mode === 'chat');
@@ -2193,14 +2227,35 @@ document.querySelectorAll('[data-key]').forEach(b => b.onclick = () => send({ t:
 
 /* ---------- composer ---------- */
 const text = $('text');
+function draftKey(win = currentWindow || store.get('window') || 'default') {
+  return 'draft:' + (win || 'default');
+}
+function saveDraft(win) {
+  const v = text.value;
+  store.set(draftKey(win), v.trim() ? v : null);
+}
+function loadDraft(win) {
+  const v = store.get(draftKey(win)) || '';
+  if (text.value === v) { autosize(); return; }
+  text.value = v;
+  autosize();
+}
+function clearDraft(win) {
+  store.set(draftKey(win), null);
+}
 function autosize() { text.style.height = 'auto'; text.style.height = text.scrollHeight + 'px'; }
-text.addEventListener('input', autosize);
+text.addEventListener('input', () => { autosize(); saveDraft(); });
+// Survive app switches / WebView reloads: flush draft when backgrounding.
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveDraft(); });
+window.addEventListener('pagehide', () => saveDraft());
 $('send').onclick = () => {
   if (!hasControl) return status('Take control first', false);
   const v = text.value;
   if (!v.trim()) return;
   send({ t: 'send', text: v, submit: true });
-  text.value = ''; autosize();
+  text.value = '';
+  clearDraft();
+  autosize();
   if (mode === 'chat') list.scrollTop = list.scrollHeight;
 };
 
@@ -2401,6 +2456,7 @@ if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWor
 
 setCrop(crop);
 setMode(mode);
+loadDraft(store.get('window') || 'default');
 boot();
 </script>
 </body>

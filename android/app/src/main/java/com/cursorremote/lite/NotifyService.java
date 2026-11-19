@@ -79,23 +79,33 @@ public class NotifyService extends Service {
 
         // Keepalive-only: stay sticky in memory; event stream starts when notifications are configured.
         if (!enabled(this)) {
-            running = false;
+            stopWorker();
             return START_STICKY;
         }
-        if (worker == null || !worker.isAlive()) {
-            running = true;
-            worker = new Thread(this::loop, "cursor-remote-notify");
-            worker.start();
-        }
+        // Always (re)start the listener so a refreshed token / Pages URL from setNotify takes effect.
+        stopWorker();
+        running = true;
+        worker = new Thread(this::loop, "cursor-remote-notify");
+        worker.start();
         return START_STICKY;
+    }
+
+    private void stopWorker() {
+        running = false;
+        HttpURLConnection c = conn;
+        if (c != null) {
+            try { c.disconnect(); } catch (Exception ignored) {}
+            conn = null;
+        }
+        if (worker != null) {
+            worker.interrupt();
+            worker = null;
+        }
     }
 
     @Override
     public void onDestroy() {
-        running = false;
-        HttpURLConnection c = conn;
-        if (c != null) c.disconnect();
-        if (worker != null) worker.interrupt();
+        stopWorker();
         super.onDestroy();
     }
 
@@ -181,7 +191,8 @@ public class NotifyService extends Service {
     private void show(JSONObject e) {
         String win = e.optString("win", "");
         String kind = e.optString("kind", "");
-        boolean done = "done".equals(kind);
+        // test + done use the high-importance finished channel (sound / heads-up).
+        boolean done = "done".equals(kind) || "test".equals(kind);
         String channel = done ? CH_DONE : CH_WAIT;
         // One notification per window: a newer event replaces the older one.
         int id = win.isEmpty() ? 2 : 3 + (win.hashCode() & 0x7fffffff) % 100000;

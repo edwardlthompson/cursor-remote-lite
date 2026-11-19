@@ -77,10 +77,10 @@ export async function deliver(event, onlyDevice = null) {
     windowTitle: en.windowTitle || readState().windowTitles?.[en.win] || '',
   });
   for (const d of listDevices()) {
-    // Skip alerts only for the window this device is actively viewing — except "done":
-    // finish alerts always fire (with sound on Android), matching desktop Cursor's completion chime.
+    // Skip alerts only for the window this device is actively viewing — except "done" / "test":
+    // finish + test alerts always fire (with sound on Android), matching desktop Cursor's completion chime.
     if (onlyDevice ? d.id !== onlyDevice
-      : (event.kind !== 'done' && watching(d.id, event.win))) continue;
+      : (event.kind !== 'done' && event.kind !== 'test' && watching(d.id, event.win))) continue;
     const payload = JSON.stringify(d.lang === 'zh' && zh ? { ...en, ...zh } : en);
     for (const s of streams) if (s.deviceId === d.id) s.res.write(`data: ${payload}\n\n`);
     if (!d.push) continue;
