@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import webpush from 'web-push';
 import { DATA_DIR, listDevices, updateDevice, saveState, readState } from './auth.mjs';
-import { telegramNotify } from './telegram.mjs';
+import { telegramNotify, telegramEnabled } from './telegram.mjs';
 
 const POLL_MS = 3000;
 // Agent stop button flickers between steps; require it gone for this many polls before calling the run finished.
