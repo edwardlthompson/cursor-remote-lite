@@ -91,7 +91,7 @@ public class NotifyService extends Service {
                 .setContentIntent(openApp(null, null, 0))
                 .setOngoing(true)
                 .setCategory(Notification.CATEGORY_SERVICE);
-        if (Build.VERSION.SDK_INT >= 29) listenBuilder.setSilent(true);
+        // Do not call Builder.setSilent — compileSdk 24 lacks it; quietness comes from CH_LISTEN.
         Notification listening = listenBuilder.build();
         if (Build.VERSION.SDK_INT >= 34) startForeground(LISTEN_ID, listening, ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING);
         else startForeground(LISTEN_ID, listening);
@@ -228,10 +228,6 @@ public class NotifyService extends Service {
                 .setOnlyAlertOnce(false);
         if (Build.VERSION.SDK_INT >= 26) {
             b.setGroupAlertBehavior(Notification.GROUP_ALERT_ALL);
-        }
-        if (Build.VERSION.SDK_INT >= 29) {
-            // Explicitly not silent — OEMs otherwise inherit silence from the FGS listen notification.
-            b.setSilent(false);
         }
         if (Build.VERSION.SDK_INT < 26) {
             b.setPriority(Notification.PRIORITY_MAX);
