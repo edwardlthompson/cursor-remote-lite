@@ -1,0 +1,30 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Cursor Remote Lite" Manufacturer="Cursor Remote" Version="1.6.0"
+           UpgradeCode="A7C3E9F1-4B2D-4E8A-9C1F-8D6E5B4A3210" Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <Feature Id="Main" Title="Cursor Remote" Level="1">
+      <ComponentRef Id="MainExe" />
+      <ComponentRef Id="AppShortcut" />
+    </Feature>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Cursor Remote Lite" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppMenu" Name="Cursor Remote Lite" />
+    </StandardDirectory>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="MainExe" Guid="C0FFEE00-1234-4ABC-9DEF-0123456789AB">
+        <File Id="CursorRemoteExe" Source="C:\Users\edwar\cursor-remote-lite\packaging\out\CursorRemote.exe" Name="CursorRemote.exe" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+    <DirectoryRef Id="AppMenu">
+      <Component Id="AppShortcut" Guid="B1C2D3E4-F5A6-7890-ABCD-EF1234567890">
+        <Shortcut Id="StartMenuShortcut" Name="Cursor Remote" Description="Control desktop Cursor from your phone"
+                  Target="[INSTALLFOLDER]CursorRemote.exe" WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveAppMenu" Directory="AppMenu" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\CursorRemoteLite" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+  </Package>
+</Wix>

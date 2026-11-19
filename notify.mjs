@@ -57,12 +57,12 @@ const wanted = () => streams.size > 0 || listDevices().some(d => d.push);
 
 /* ---------- delivery ---------- */
 
-// event.en holds the English title/body for devices whose app is set to English.
+// English is the default payload; event.zh holds Chinese title/body when the app language is zh.
 export async function deliver(event, onlyDevice = null) {
-  const { en, ...zh } = event;
+  const { zh, ...en } = event;
   for (const d of listDevices()) {
     if (onlyDevice ? d.id !== onlyDevice : watching(d.id, event.win)) continue;
-    const payload = JSON.stringify(d.lang === 'en' && en ? { ...zh, ...en } : zh);
+    const payload = JSON.stringify(d.lang === 'zh' && zh ? { ...en, ...zh } : en);
     for (const s of streams) if (s.deviceId === d.id) s.res.write(`data: ${payload}\n\n`);
     if (!d.push) continue;
     try {
@@ -70,7 +70,7 @@ export async function deliver(event, onlyDevice = null) {
     } catch (e) {
       // 404/410: the browser dropped the subscription (app removed, permission revoked).
       if (e.statusCode === 404 || e.statusCode === 410) updateDevice(d.id, { push: null });
-      else console.log(`!! 推送到「${d.name}」失败：${e.statusCode || ''} ${e.body || e.message}`);
+      else console.log(`!! Push to "${d.name}" failed: ${e.statusCode || ''} ${e.body || e.message}`);
     }
   }
 }
@@ -91,15 +91,15 @@ function check(win, w, s) {
   if (s.waiting !== w.waiting) { w.waiting = s.waiting; w.waitPolls = 0; w.told = first; }
   if (s.waiting && !w.told && ++w.waitPolls >= WAIT_POLLS) {
     w.told = true;
-    deliver({ kind: 'waiting', win: win.id, title: `等你确认 · ${name}`, body: s.waitingText || 'Agent 在等你确认',
-      en: { title: `Needs your OK · ${name}`, body: s.waitingText || 'The Agent is waiting for you' } });
+    deliver({ kind: 'waiting', win: win.id, title: `Needs your OK · ${name}`, body: s.waitingText || 'The Agent is waiting for you',
+      zh: { title: `等你确认 · ${name}`, body: s.waitingText || 'Agent 在等你确认' } });
   }
 
   if (s.busy) { w.busy = true; w.idle = 0; return; }
   if (!w.busy || ++w.idle < IDLE_POLLS) return;
   w.busy = false;
-  if (!s.waiting) deliver({ kind: 'done', win: win.id, title: `已完成 · ${name}`, body: s.last || 'Agent 已停止',
-    en: { title: `Done · ${name}`, body: s.last || 'The Agent has stopped' } });
+  if (!s.waiting) deliver({ kind: 'done', win: win.id, title: `Done · ${name}`, body: s.last || 'The Agent has stopped',
+    zh: { title: `已完成 · ${name}`, body: s.last || 'Agent 已停止' } });
 }
 
 // listWindows/openCdp/probe come from the relay so this module shares its CDP code.

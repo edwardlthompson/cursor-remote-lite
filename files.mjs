@@ -66,7 +66,7 @@ async function ssh(host, command, limit) {
     return await sshOnce(host, command, limit);
   } catch {
     await new Promise(r => setTimeout(r, 500));
-    return sshOnce(host, command, limit).catch(e => { throw new Error(`SSH 连接 ${host} 失败：${e.message}`); });
+    return sshOnce(host, command, limit).catch(e => { throw new Error(`SSH connection to ${host} failed: ${e.message}`); });
   }
 }
 
@@ -117,12 +117,12 @@ export async function readFile(host, p, size) {
   const name = path.posix.basename(p);
   const image = IMAGE_TYPES[path.extname(name).toLowerCase()];
   if (image) {
-    if (size > IMAGE_LIMIT) throw new Error(`图片太大（${(size / 1048576).toFixed(1)} MB），请在电脑上看`);
+    if (size > IMAGE_LIMIT) throw new Error(`Image too large (${(size / 1048576).toFixed(1)} MB); view it on the computer`);
     const buf = await readHead(host, p, size);
     return { image: `data:${image};base64,${buf.toString('base64')}` };
   }
   const buf = await readHead(host, p, Math.min(size, TEXT_LIMIT));
-  if (buf.subarray(0, 8192).includes(0)) throw new Error('二进制文件，不能预览');
+  if (buf.subarray(0, 8192).includes(0)) throw new Error('Binary file; cannot preview');
   return { text: buf.toString('utf8'), truncated: size > TEXT_LIMIT };
 }
 

@@ -66,7 +66,7 @@ export function addDevice(name) {
   const token = crypto.randomBytes(32).toString('base64url');
   const device = {
     id: crypto.randomBytes(4).toString('hex'),
-    name: String(name || '未命名设备').slice(0, 60),
+    name: String(name || 'Unnamed device').slice(0, 60),
     tokenHash: sha256(token),
     created: Date.now(),
     lastSeen: Date.now(),

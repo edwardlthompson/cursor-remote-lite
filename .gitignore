@@ -7,3 +7,14 @@ android/app/build/
 android/local.properties
 *.p12
 *.jks
+packaging/out/
+packaging/out-tools/
+android/local.properties
+packaging/windows/Setup/bin/
+packaging/windows/Setup/obj/
+packaging/windows/Launcher/bin/
+packaging/windows/Launcher/obj/
+CursorRemote.apk
+CursorRemote.apk.idsig
+CursorRemote.exe
+CursorRemote.msi

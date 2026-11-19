@@ -8,35 +8,37 @@ import { totpConfig, newTotpSecret, totpUri, checkTotp, enableTotp, disableTotp 
 
 const cmd = process.argv[2] || 'on';
 const cfg = totpConfig();
-const rule = days => days ? `配对新设备时，以及每台设备每 ${days} 天验证一次` : '只在配对新设备时验证';
+const rule = days => days
+  ? `when pairing a new device, and every ${days} days per device`
+  : 'only when pairing a new device';
 
 if (cmd === 'status') {
-  console.log(cfg ? `二次验证：已开启（${rule(cfg.everyDays)}）` : '二次验证：未开启（运行 npm run 2fa 开启）');
+  console.log(cfg ? `Two-factor: on (${rule(cfg.everyDays)})` : 'Two-factor: off (run npm run 2fa to enable)');
   process.exit(0);
 }
 if (cmd === 'off') {
   disableTotp();
-  console.log('已关闭二次验证。');
+  console.log('Two-factor disabled.');
   process.exit(0);
 }
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-if (cfg && !/^y/i.test(await rl.question(`已经开启了（${rule(cfg.everyDays)}）。要重新绑定 Authenticator 吗？(y/N) `))) process.exit(0);
+if (cfg && !/^y/i.test(await rl.question(`Already enabled (${rule(cfg.everyDays)}). Re-bind Authenticator? (y/N) `))) process.exit(0);
 
 const secret = newTotpSecret();
-console.log('\n1. 手机打开 Authenticator（Google / Microsoft Authenticator 等），扫描下面的二维码：\n');
+console.log('\n1. Open Authenticator on your phone (Google / Microsoft Authenticator, etc.) and scan this QR code:\n');
 qrcode.generate(totpUri(secret, os.hostname().replace(/\.local$/, '')), { small: true });
-console.log(`\n   扫不了的话，手动输入密钥：${secret}\n`);
+console.log(`\n   If you cannot scan, enter this secret manually: ${secret}\n`);
 
 let ok = false;
 for (let i = 0; i < 3 && !ok; i++) {
-  ok = checkTotp(secret, await rl.question('2. 输入 Authenticator 显示的 6 位数字确认：'));
-  if (!ok) console.log('   不对，注意要输入当前显示的那组数字。');
+  ok = checkTotp(secret, await rl.question('2. Enter the 6-digit code shown in Authenticator: '));
+  if (!ok) console.log('   Incorrect — use the code currently displayed.');
 }
-if (!ok) { console.log('没有开启。'); process.exit(1); }
+if (!ok) { console.log('Not enabled.'); process.exit(1); }
 
-const answer = (await rl.question('3. 多少天要求每台设备重新验证一次？（直接回车 = 30 天；输入 0 = 只在配对新设备时验证）')).trim();
+const answer = (await rl.question('3. Re-verify each device every how many days? (Enter = 30; 0 = only when pairing a new device) ')).trim();
 const everyDays = answer === '' ? 30 : Math.max(0, parseInt(answer, 10) || 0);
 enableTotp(secret, everyDays);
-console.log(`\n已开启二次验证：${rule(everyDays)}。已配对的设备从现在开始计时。`);
+console.log(`\nTwo-factor enabled: ${rule(everyDays)}. Already-paired devices start counting from now.`);
 rl.close();

@@ -1,17 +1,22 @@
 {
   "name": "cursor-remote-lite",
-  "version": "1.0.0",
+  "version": "1.6.0",
   "description": "Use your desktop Cursor from your phone: chat with the Agent, approve steps, switch windows/modes/models. Free and self-hosted.",
   "type": "module",
   "main": "server.mjs",
   "scripts": {
     "setup": "node setup.mjs",
+    "setup:auto": "node setup.mjs --yes",
+    "bootstrap": "node setup.mjs --yes",
     "start": "node server.mjs",
     "public": "node server.mjs --tunnel",
     "pair": "node devices.mjs pair",
+    "adb-pair": "node adb-pair.mjs",
     "devices": "node devices.mjs",
     "2fa": "node twofa.mjs",
-    "reset": "node -e \"const d=require('os').homedir()+'/.cursor-remote-lite/';for(const f of ['url-key','devices.json','pairing.json','totp.json','config.json','state.json'])require('fs').rmSync(d+f,{force:true});console.log('已重置：所有设备需要重新配对，二次验证已关闭')\""
+    "win": "node win-run.mjs",
+    "dist:win": "powershell -ExecutionPolicy Bypass -File .\\packaging\\windows\\build.ps1",
+    "reset": "node -e \"const d=require('os').homedir()+'/.cursor-remote-lite/';for(const f of ['url-key','devices.json','pairing.json','totp.json','config.json','state.json'])require('fs').rmSync(d+f,{force:true});console.log('Reset complete: re-pair all devices; two-factor is off')\""
   },
   "engines": {
     "node": ">=22"

@@ -1,4 +1,4 @@
-[中文](README.md) | **English**
+**English** | [中文](README.zh.md)
 
 # Cursor Remote Lite
 
@@ -96,7 +96,7 @@ So this project provides both: an Android app that installs without Google servi
 - **Send images**: the image button next to the input box attaches a photo or screenshot (say, a picture of an error on another screen) to Cursor's input box, so you can send it along with your message. Large images are compressed on the phone first.
 - **Confirmation for risky actions**: stopping the Agent or a sub-agent, undoing changes, deleting queued messages, rejecting, removing a device and unpairing all ask for confirmation first.
 - **Voice input (off by default)**: your keyboard's microphone already does dictation, so the microphone button is hidden by default. Turn it on under "⋯ → Voice button": the Android app uses the system speech recognizer; iPhone / browsers use the browser's built-in speech recognition.
-- **中文 / English**: follows your phone's system language by default; you can also switch under "⋯ → 语言 / Language". Notifications follow the chosen language too.
+- **English / 中文**: English by default for non-Chinese system languages; switch anytime under "⋯ → 语言 / Language". Notifications follow the chosen language too.
 - **Device pairing**: no passwords. Your computer generates a one-time QR code, you scan it with your phone, and you're paired; optional Authenticator two-factor verification.
 - **Fixed address**: the app is hosted on your own GitHub Pages, so you don't need to re-pair when your computer restarts or the tunnel address changes.
 
@@ -129,7 +129,17 @@ npm run setup        # create the phone app repo, enable start at login, optiona
 ./start-cursor.sh    # restart Cursor with the debugging port (quits the current Cursor first)
 ```
 
-`npm run setup` creates a public repository under **your own** GitHub account (named `cursor-remote-app` by default) and uses GitHub Pages to host the phone app and your computer's encrypted address. Everyone uses their own; it has nothing to do with the author or other users.
+**Windows (automated):** from an external PowerShell window (not Cursor's terminal):
+
+```powershell
+npm install
+powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
+# or non-interactive setup only: npm run setup:auto
+powershell -ExecutionPolicy Bypass -File .\start-cursor.ps1
+npm run public
+```
+
+`npm run setup` / `setup:auto` creates a public repository under **your own** GitHub account (named `cursor-remote-app` by default) and uses GitHub Pages to host the phone app and your computer's encrypted address. Everyone uses their own; it has nothing to do with the author or other users.
 
 **Step 2: Pair your phone**
 
@@ -145,7 +155,8 @@ If you can't scan it, send the link shown below the QR code to your phone and op
 **Step 3: Install it on your phone (optional, but recommended)**
 
 - **iPhone**: open it in Safari → Share → Add to Home Screen
-- **Android**: download and install [CursorRemote.apk](https://github.com/Suchenl/cursor-remote-lite/releases/latest/download/CursorRemote.apk), then scan the pairing code with your phone. The browser will offer to "Open in app"; tap it and the app gets paired (if the pairing code has already been used, run `npm run pair` again).
+- **Windows (recommended)**: download [CursorRemote.exe](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.exe) or [CursorRemote.msi](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.msi). On first run it sets up the relay; if a phone is connected over ADB and/or `CursorRemote.apk` is in the same folder, it installs the app and opens pairing automatically.
+- **Android**: download and install [CursorRemote.apk](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.apk) (app name: **Cursor Remote**), then scan the pairing code — or use EXE/MSI auto-pair over ADB as above.
   Works on Huawei and other phones without Google services (the browser's "Install app" option usually isn't available on these phones).
   Note: pure HarmonyOS (HarmonyOS NEXT / 5.0 and later) can't install APKs directly; install "Zhuoyitong" (卓易通) first.
 

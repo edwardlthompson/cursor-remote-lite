@@ -66,7 +66,7 @@ function recordFailure(ip) {
   const now = Date.now();
   failures.set(ip, [...(failures.get(ip) || []), now]);
   globalFailures.push(now);
-  console.log(`!! 验证失败 ip=${ip}（15 分钟内：本 IP ${failures.get(ip).length} 次，总计 ${globalFailures.length} 次）`);
+  console.log(`!! Auth failed ip=${ip} (last 15 min: this IP ${failures.get(ip).length}, total ${globalFailures.length})`);
 }
 
 function readBody(req, limit = 4096) {
@@ -88,7 +88,7 @@ function originAllowed(req) {
 
 async function listWindows() {
   const res = await fetch(`${CDP_URL}/json/list`).catch(() => {
-    throw new Error('连不上 Cursor：Cursor 没有用 start-cursor.sh / start-cursor.ps1 启动（调试端口未开启）');
+    throw new Error('Cannot reach Cursor: it was not started with start-cursor.sh / start-cursor.ps1 (debug port is off)');
   });
   const targets = await res.json();
   return targets
@@ -220,9 +220,21 @@ function pageHelpers() {
   };
 
   const findPanel = () => {
-    for (const ed of [...document.querySelectorAll('.aislash-editor-input, .ui-prompt-input-editor__input')].filter(vis)) {
+    // Agents window (newer Cursor): active chat panel with a virtualized transcript + live composer.
+    const agentPanels = [...document.querySelectorAll('.agent-panel, .ui-tiling-panel')]
+      .filter(vis)
+      .filter(p => p.querySelector('.composer-react-transcript-root')
+        && p.querySelector('.ui-prompt-input-editor__input[contenteditable="true"], .aislash-editor-input[contenteditable="true"]'));
+    if (agentPanels.length) {
+      return agentPanels.sort((a, b) =>
+        ((b.querySelector('.composer-react-transcript-root')?.innerText || '').length)
+        - ((a.querySelector('.composer-react-transcript-root')?.innerText || '').length))[0];
+    }
+    // IDE / older layouts: walk up from a visible composer to a message list.
+    for (const ed of [...document.querySelectorAll('.aislash-editor-input, .ui-prompt-input-editor__input')]
+      .filter(e => vis(e) && e.getAttribute('contenteditable') === 'true')) {
       let p = ed;
-      while (p && !p.querySelector('[data-flat-index]')) p = p.parentElement;
+      while (p && !p.querySelector('[data-flat-index], .composer-react-transcript-root')) p = p.parentElement;
       if (p) return p;
     }
     const f = [...document.querySelectorAll('[data-flat-index]')].find(vis);
@@ -262,7 +274,21 @@ function pageHelpers() {
     return head.innerText.trim().replace(/\s*\n\s*/g, ' · ').slice(0, 240);
   };
 
-  const topItems = panel => [...panel.querySelectorAll('[data-flat-index]')].filter(e => !e.parentElement.closest('[data-flat-index]'));
+  const topItems = panel => {
+    const flats = [...panel.querySelectorAll('[data-flat-index]')].filter(e => !e.parentElement.closest('[data-flat-index]'));
+    if (flats.length) return flats;
+    // Newer Agents UI: virtualized transcript rows (no data-flat-index).
+    const root = [...panel.querySelectorAll('.composer-react-transcript-root')].filter(vis)
+      .sort((a, b) => ((b.innerText || '').length) - ((a.innerText || '').length))[0];
+    if (!root) return [];
+    const skip = /^(\d+[smhd] ago|New messages below|Thinking(\s+Thinking)*)$/i;
+    return [...root.querySelectorAll('.composer-react-virtual-plane-row, .virtualized-composer-messages-row')]
+      .filter(vis)
+      .filter(row => {
+        const t = (row.innerText || '').trim();
+        return t && !skip.test(t.replace(/\s+/g, ' '));
+      });
+  };
 
   // Messages sent while the Agent is running wait in Cursor's queue tray until the current turn ends.
   const QUEUE_ROW = '[data-queue-row], .composer-toolbar-queue-item[data-queue-item-id]';
@@ -404,19 +430,29 @@ function pageHelpers() {
     const panel = findPanel();
     if (!panel) return null;
     const r = panel.getBoundingClientRect();
-    const items = topItems(panel).map(el => {
+    const items = topItems(panel).map((el, idx) => {
       const kindEl = el.matches('[data-message-kind]') ? el : el.querySelector('[data-message-kind]');
-      const k = kindEl?.dataset.messageKind || (el.querySelector('.composer-human-message, .aislash-editor-input-readonly') ? 'human' : 'other');
-      const item = { i: el.dataset.flatIndex, k };
-      if (k === 'human') item.t = (el.querySelector('.aislash-editor-input-readonly, .composer-human-message') || el).innerText.trim();
-      else if (k === 'assistant') { const md = el.querySelector('.markdown-root'); item.h = md ? clean(md) : esc(el.innerText); }
-      else item.t = summary(el);
+      let k = kindEl?.dataset.messageKind
+        || (el.querySelector('.composer-human-message, .ui-agent-transcript-human-bubble, .aislash-editor-input-readonly') ? 'human' : null)
+        || (el.querySelector('.ui-tool-call-card, .ui-collapsible-header, .task-tool-call-header, .ui-edit-tool-call__filename') ? 'tool' : null)
+        || (el.querySelector('.markdown-root, .anysphere-markdown-body, .agent-transcript-row-markdown') ? 'assistant' : null)
+        || 'other';
+      if (k === 'thinking') k = 'other';
+      const item = { i: el.dataset.flatIndex || String(idx), k };
+      if (k === 'human') {
+        item.t = (el.querySelector('.aislash-editor-input-readonly, .composer-human-message, .ui-prompt-input-tiptap-readonly__content, .composer-human-message-content') || el).innerText.trim();
+      } else if (k === 'assistant') {
+        const md = el.querySelector('.markdown-root, .anysphere-markdown-body, .ui-markdown');
+        item.h = md ? clean(md) : esc(el.innerText);
+      } else item.t = summary(el);
       if (k === 'tool') { const f = toolFile(el); if (f) item.f = f; }
       const b = buttonsIn(el, false);
       if (b.length) item.b = b.map(x => x.label);
       return item;
-    });
-    const global = buttonsIn(panel, true).filter(x => !x.el.closest('[data-flat-index]') && !inQn(x.el)).map(x => x.label);
+    }).filter(it => it.t || it.h);
+    const global = buttonsIn(panel, true)
+      .filter(x => !x.el.closest('[data-flat-index], .composer-react-virtual-plane-row, .virtualized-composer-messages-row') && !inQn(x.el))
+      .map(x => x.label);
     const modeEl = [...document.querySelectorAll('.composer-unified-dropdown[data-mode]')].find(vis);
     const modelEl = [...document.querySelectorAll('.ui-model-picker__trigger, .composer-unified-dropdown-model')].find(vis);
     return {
@@ -438,8 +474,40 @@ function pageHelpers() {
   const CONTROLS = {
     mode: () => [...document.querySelectorAll('.composer-unified-dropdown[data-mode]')].find(vis),
     model: () => [...document.querySelectorAll('.ui-model-picker__trigger, .composer-unified-dropdown-model')].find(vis),
-    history: () => [...document.querySelectorAll('[aria-label^="Show Chat History"], [aria-label^="Show Agent History"]')].find(vis),
-    newChat: () => [...document.querySelectorAll('[aria-label^="New Agent"], [aria-label^="New Chat"]')].find(vis),
+    history: () => [...document.querySelectorAll('[aria-label^="Show Chat History"], [aria-label^="Show Agent History"], [aria-label^="Open Chat History"]')].find(vis)
+      || [...document.querySelectorAll('button, [role=button]')].find(el => vis(el) && /^(Show|Open)( Chat| Agent)? History\b/i.test(el.getAttribute('aria-label') || '')),
+    newChat: () => [...document.querySelectorAll('[aria-label^="New Agent"], [aria-label^="New Chat"]')].find(vis)
+      || [...document.querySelectorAll('.ui-sidebar-menu-button-trigger')].find(el => vis(el) && /^New Chat$/i.test((el.innerText || '').trim().split('\n')[0])),
+  };
+
+  // Agents window: past chats live in the left sidebar (no separate History popup anymore).
+  const agentSidebarVisible = () => [...document.querySelectorAll('.glass-sidebar-agent-list-container, [aria-label="Sidebar"].ui-sidebar, [aria-label=Sidebar]')].some(vis);
+  const ensureAgentSidebar = () => {
+    if (agentSidebarVisible()) return null;
+    const show = [...document.querySelectorAll('button, [role=button]')].find(el => {
+      if (!vis(el)) return false;
+      const a = el.getAttribute('aria-label') || '';
+      return /^(Show Sidebar|Toggle Primary Sidebar|Toggle Sidebar)$/i.test(a) || /show sidebar/i.test(a);
+    });
+    return show ? center(show) : null;
+  };
+  const agentSidebarChats = () => {
+    const skip = /^(New Chat|Automations|Customize|Projects|Pinned|Agents|Ctrl\+N)$/i;
+    const items = [...document.querySelectorAll('.glass-sidebar-agent-list-container li.ui-sidebar-menu-item, [aria-label="Sidebar"] li.ui-sidebar-menu-item, [aria-label=Sidebar] li.ui-sidebar-menu-item')]
+      .filter(vis)
+      .map(el => {
+        const texts = [...el.querySelectorAll('.ui-sidebar-menu-button-content .ui-text')].map(s => s.innerText.trim()).filter(Boolean);
+        const label = (texts[0] || (el.innerText || '').trim().split('\n')[0] || '').slice(0, 80);
+        const btn = el.querySelector('.ui-sidebar-menu-button-trigger, .ui-sidebar-menu-button') || el;
+        const checked = el.getAttribute('aria-selected') === 'true'
+          || btn.getAttribute('aria-current') === 'page'
+          || /\b(active|selected|current)\b/i.test(`${el.className} ${btn.className}`);
+        return { el: btn, label, checked };
+      })
+      .filter(x => x.label && !skip.test(x.label));
+    // Deduplicate identical labels by keeping first occurrence (sidebar order).
+    const seen = new Set();
+    return items.filter(x => (seen.has(x.label) ? false : (seen.add(x.label), true)));
   };
 
   const center = el => {
@@ -458,6 +526,8 @@ function pageHelpers() {
     history: () => {
       const rows = [...document.querySelectorAll('.composer-history-hover-menu .ui-menu__row')];
       if (rows.length) return rows.map(e => ({ el: e, label: (e.querySelector('.compact-agent-history-react-menu-label, .ui-menu__item-content') || e).innerText.trim().split('\n')[0].slice(0, 80), checked: e.getAttribute('aria-checked') === 'true' || /\b(selected|active|current)\b/.test(e.className) }));
+      const sidebar = agentSidebarChats();
+      if (sidebar.length) return sidebar;
       return [...document.querySelectorAll('.quick-input-widget .monaco-list-row')].map(e => ({ el: e, label: (e.getAttribute('aria-label') || e.innerText).trim().split('\n')[0].slice(0, 80), checked: e.classList.contains('focused') }));
     },
   };
@@ -507,9 +577,15 @@ function pageHelpers() {
   const locate = (item, n) => {
     const panel = findPanel();
     if (!panel) return null;
-    const root = item === 'g' ? panel : panel.querySelector(`[data-flat-index="${CSS.escape(item)}"]`);
+    let root = item === 'g' ? panel : panel.querySelector(`[data-flat-index="${CSS.escape(item)}"]`);
+    if (!root && item !== 'g') {
+      const list = topItems(panel);
+      root = list[Number(item)] || list.find(el => el.dataset.flatIndex === item) || null;
+    }
     if (!root) return null;
-    const list = item === 'g' ? buttonsIn(panel, true).filter(x => !x.el.closest('[data-flat-index]') && !inQn(x.el)) : buttonsIn(root, false);
+    const list = item === 'g'
+      ? buttonsIn(panel, true).filter(x => !x.el.closest('[data-flat-index], .composer-react-virtual-plane-row, .virtualized-composer-messages-row') && !inQn(x.el))
+      : buttonsIn(root, false);
     const b = list[n]?.el;
     if (!b) return null;
     b.scrollIntoView({ block: 'center' });
@@ -560,7 +636,8 @@ function pageHelpers() {
   };
 
   return { extract, locate, panelRect, control, menuItems, menuItem, quickOpenRows, agentState, queueTarget, stopTarget, focusQueueEdit,
-    menuOpen, maxToggle, modelTarget, modelParams, paramTarget, subTarget, activeChatTab, tabTarget, hasComposer, filesState, fileTarget, questionTarget };
+    menuOpen, maxToggle, modelTarget, modelParams, paramTarget, subTarget, activeChatTab, tabTarget, hasComposer, filesState, fileTarget, questionTarget,
+    ensureAgentSidebar, agentSidebarVisible };
 }
 
 const helpersCall = call => `(${pageHelpers.toString()})().${call}`;
@@ -626,13 +703,13 @@ class Session {
 
   async clickButton(item, n) {
     const pos = await this.cdp.evaluate(helpersCall(`locate(${JSON.stringify(String(item))}, ${Number(n) || 0})`));
-    if (!pos) throw new Error('按钮已经不在了，可能状态已变化');
+    if (!pos) throw new Error('That button is gone; the state may have changed');
     await this.tapCss(pos.x, pos.y);
     setTimeout(() => this.pollChat().catch(() => {}), 300);
   }
 
   async editQueued(id, text) {
-    if (!text.trim()) throw new Error('内容不能为空；不想要这条就点「删除」');
+    if (!text.trim()) throw new Error('The message cannot be empty; use "Delete" to drop it');
     await this.queueAction(id, 'edit');
     const focus = () => this.cdp.evaluate(helpersCall(`focusQueueEdit(${JSON.stringify(String(id))})`));
     let ok = false;
@@ -640,7 +717,7 @@ class Session {
       await new Promise(r => setTimeout(r, 100));
       ok = await focus();
     }
-    if (!ok) throw new Error('Cursor 没有进入编辑状态，没改动');
+    if (!ok) throw new Error('Cursor did not enter edit mode; nothing changed');
     await this.key(process.platform === 'darwin' ? 'Meta+A' : 'Ctrl+A');
     await this.typeText(text);
     await this.key('Enter');
@@ -648,17 +725,17 @@ class Session {
   }
 
   async queueAction(id, action) {
-    if (!['send', 'remove', 'edit'].includes(action)) throw new Error('不支持的排队操作');
+    if (!['send', 'remove', 'edit'].includes(action)) throw new Error('Unsupported queue action');
     const call = a => this.cdp.evaluate(helpersCall(`queueTarget(${JSON.stringify(String(id))}${a ? `, ${JSON.stringify(a)}` : ''})`));
     const row = await call();
-    if (!row) throw new Error('这条排队消息已经不在了（可能刚被发出）');
+    if (!row) throw new Error('That queued message is gone (it may have just been sent)');
     await this.cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: row.x, y: row.y });
     let pos = null;
     for (let i = 0; i < 6 && !pos; i++) {
       await new Promise(r => setTimeout(r, 80));
       pos = await call(action);
     }
-    if (!pos) throw new Error('没找到排队消息的操作按钮（可能 Cursor 版本不同）');
+    if (!pos) throw new Error('Could not find the queue buttons (your Cursor version may differ)');
     await this.tapCss(pos.x, pos.y);
     setTimeout(() => this.pollChat().catch(() => {}), 300);
   }
@@ -673,7 +750,7 @@ class Session {
         pos = await this.cdp.evaluate(helpersCall(call));
       }
     }
-    if (!pos || pos.expand) throw new Error('这个子 Agent 已经结束了，或者 Cursor 里找不到它');
+    if (!pos || pos.expand) throw new Error('That subagent has finished, or Cursor cannot find it');
     if (part === 'open') {
       const tab = await this.cdp.evaluate(helpersCall('activeChatTab()'));
       if (tab && await this.cdp.evaluate(helpersCall('hasComposer()'))) this.mainTab = tab;
@@ -710,17 +787,17 @@ class Session {
   }
 
   async changeAction(i, name, act) {
-    if (!['keep', 'undo', 'bar'].includes(act)) throw new Error('不支持的操作');
+    if (!['keep', 'undo', 'bar'].includes(act)) throw new Error('Unsupported action');
     await this.withFiles(async () => {
       const call = a => helpersCall(`fileTarget(${Number(i) || 0}, ${JSON.stringify(String(name))}, ${JSON.stringify(a)})`);
       if (act !== 'bar') {
         const row = await this.cdp.evaluate(call('row'));
-        if (!row) throw new Error('文件列表已经变了，请重新打开');
+        if (!row) throw new Error('The file list changed; open it again');
         await this.cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: row.x, y: row.y });
         await new Promise(r => setTimeout(r, 120));
       }
       const pos = await this.cdp.evaluate(call(act));
-      if (!pos) throw new Error('没找到这个按钮（可能 Cursor 版本不同）');
+      if (!pos) throw new Error('Button not found (your Cursor version may differ)');
       await this.tapCss(pos.x, pos.y);
       await new Promise(r => setTimeout(r, 400));
     });
@@ -730,26 +807,54 @@ class Session {
 
   async backToMain() {
     const pos = this.mainTab && await this.cdp.evaluate(helpersCall(`tabTarget(${JSON.stringify(this.mainTab)})`));
-    if (!pos) throw new Error('找不到原来的主对话标签页，请在「画面」里手动切回');
+    if (!pos) throw new Error('Cannot find the main chat tab; switch back manually in "Screen"');
     await this.tapCss(pos.x, pos.y);
     setTimeout(() => this.pollChat().catch(() => {}), 400);
   }
 
   async stopAgent() {
     const pos = await this.cdp.evaluate(helpersCall('stopTarget()'));
-    if (!pos) throw new Error('Agent 当前没有在运行');
+    if (!pos) throw new Error('The Agent is not running');
     await this.tapCss(pos.x, pos.y);
     setTimeout(() => this.pollChat().catch(() => {}), 300);
   }
 
   async pressControl(name) {
     const pos = await this.cdp.evaluate(helpersCall(`control(${JSON.stringify(name)})`));
-    if (!pos) throw new Error('当前窗口里没有这个按钮（可能是 Cursor 版本或布局不同）');
+    if (!pos) throw new Error('This window has no such button (your Cursor version or layout may differ)');
     await this.tapCss(pos.x, pos.y);
   }
 
   // Menus are read by opening them in Cursor, then closed again so the desktop UI is left as it was.
   async openMenu(kind) {
+    // Agents window: history is the left sidebar list, not a composer History popup.
+    if (kind === 'history') {
+      const show = await this.cdp.evaluate(helpersCall('ensureAgentSidebar()'));
+      if (show?.x != null) {
+        await this.tapCss(show.x, show.y);
+        await new Promise(r => setTimeout(r, 250));
+      }
+      let items = [];
+      for (let i = 0; i < 12 && !items.length; i++) {
+        await new Promise(r => setTimeout(r, 150));
+        items = await this.cdp.evaluate(helpersCall(`menuItems('history')`));
+      }
+      if (!items.length) {
+        // Last resort: try the legacy History button if this is an IDE composer window.
+        const legacy = await this.cdp.evaluate(helpersCall(`control('history')`));
+        if (legacy) {
+          await this.tapCss(legacy.x, legacy.y);
+          for (let i = 0; i < 10 && !items.length; i++) {
+            await new Promise(r => setTimeout(r, 150));
+            items = await this.cdp.evaluate(helpersCall(`menuItems('history')`));
+          }
+          await this.closeMenus();
+        }
+      }
+      if (!items.length) throw new Error('No chat history found. In the Agents window, show the left sidebar (chat list) and try again.');
+      this.emit({ t: 'menu', kind, items, max: null });
+      return;
+    }
     await this.pressControl(kind);
     let items = [];
     for (let i = 0; i < 10 && !items.length; i++) {
@@ -780,7 +885,7 @@ class Session {
   async toggleMax() {
     await this.pressControl('model');
     const t = await this.waitFor('maxToggle()');
-    if (!t) { await this.closeMenus(); throw new Error('这个 Cursor 版本没有 MAX Mode 开关'); }
+    if (!t) { await this.closeMenus(); throw new Error('This Cursor version has no MAX Mode toggle'); }
     await this.tapCss(t.x, t.y);
     await new Promise(r => setTimeout(r, 250));
     await this.closeMenus();
@@ -792,13 +897,13 @@ class Session {
     const id = JSON.stringify(String(model));
     await this.pressControl('model');
     const row = await this.waitFor(`modelTarget(${id})`);
-    if (!row) { await this.closeMenus(); throw new Error('模型列表里找不到这个模型'); }
+    if (!row) { await this.closeMenus(); throw new Error('That model is not in the list'); }
     await this.cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: row.x, y: row.y });
     const edit = await this.waitFor(`modelTarget(${id}, 'edit')`, 6);
-    if (!edit) { await this.closeMenus(); throw new Error('这个模型没有可调的参数'); }
+    if (!edit) { await this.closeMenus(); throw new Error('This model has no adjustable parameters'); }
     await this.tapCss(edit.x, edit.y);
     const params = await this.waitFor('modelParams()');
-    if (!params) { await this.closeMenus(); throw new Error('参数菜单没有打开（可能 Cursor 版本不同）'); }
+    if (!params) { await this.closeMenus(); throw new Error('The parameter menu did not open (your Cursor version may differ)'); }
     return params;
   }
 
@@ -814,7 +919,7 @@ class Session {
     try {
       await this.openParamMenu(model);
       const pos = await this.cdp.evaluate(helpersCall(`paramTarget(${JSON.stringify(String(section))}, ${JSON.stringify(String(value))})`));
-      if (!pos) throw new Error(`没找到参数：${section} / ${value}`);
+      if (!pos) throw new Error(`Parameter not found: ${section} / ${value}`);
       await this.tapCss(pos.x, pos.y);
       await new Promise(r => setTimeout(r, 250));
     } finally {
@@ -825,6 +930,36 @@ class Session {
   }
 
   async pickMenu(kind, label) {
+    if (kind === 'history') {
+      const show = await this.cdp.evaluate(helpersCall('ensureAgentSidebar()'));
+      if (show?.x != null) {
+        await this.tapCss(show.x, show.y);
+        await new Promise(r => setTimeout(r, 250));
+      }
+      let pos = null;
+      for (let i = 0; i < 12 && !pos; i++) {
+        await new Promise(r => setTimeout(r, 150));
+        pos = await this.cdp.evaluate(helpersCall(`menuItem('history', ${JSON.stringify(String(label))})`));
+      }
+      if (!pos) {
+        const legacy = await this.cdp.evaluate(helpersCall(`control('history')`));
+        if (legacy) {
+          await this.tapCss(legacy.x, legacy.y);
+          for (let i = 0; i < 10 && !pos; i++) {
+            await new Promise(r => setTimeout(r, 150));
+            pos = await this.cdp.evaluate(helpersCall(`menuItem('history', ${JSON.stringify(String(label))})`));
+          }
+        }
+      }
+      if (!pos) throw new Error(`Option not found: ${label}`);
+      await this.tapCss(pos.x, pos.y);
+      // Agents chats take a moment to swap the virtualized transcript; force several refreshes.
+      this.lastChat = '';
+      for (const ms of [400, 900, 1600, 2800]) {
+        setTimeout(() => { this.lastChat = ''; this.pollChat().catch(() => {}); }, ms);
+      }
+      return;
+    }
     await this.pressControl(kind);
     let pos = null;
     for (let i = 0; i < 10 && !pos; i++) {
@@ -833,7 +968,7 @@ class Session {
     }
     if (!pos) {
       await this.key('Escape');
-      throw new Error(`没找到选项：${label}`);
+      throw new Error(`Option not found: ${label}`);
     }
     await this.tapCss(pos.x, pos.y);
     setTimeout(() => this.pollChat().catch(() => {}), 500);
@@ -876,7 +1011,7 @@ class Session {
 
   async resolveFile(text) {
     const { p, line } = parseRef(text);
-    if (!p) throw new Error('不是文件路径');
+    if (!p) throw new Error('Not a file path');
     const ws = workspaceForTitle(this.winTitle || '');
     const host = ws ? ws.host : /\[SSH: ([^\]]+)\]/.exec(this.winTitle || '')?.[1] || null;
     const isAbs = /^(\/|~\/)/.test(p);
@@ -900,7 +1035,7 @@ class Session {
         const hit = await tryPath(w.host, isAbs ? p : path.posix.join(w.root, p));
         if (hit) return hit;
       }
-      throw new Error(`找不到文件（可能已被删除或移动）：${p}`);
+      throw new Error(`File not found (it may have been deleted or moved): ${p}`);
     }
     const name = path.posix.basename(p);
     const dir = path.posix.dirname(p);
@@ -914,7 +1049,7 @@ class Session {
       const hit = await tryPath(host, h.abs);
       if (hit) return hit;
     }
-    throw new Error(`找不到文件（可能已被删除或移动）：${p}`);
+    throw new Error(`File not found (it may have been deleted or moved): ${p}`);
   }
 
   async openFile(text) {
@@ -932,7 +1067,7 @@ class Session {
     this.detach();
     const wins = await listWindows();
     const win = wins.find(w => w.id === targetId) || wins[0];
-    if (!win) throw new Error('没有找到 Cursor 窗口，确认 Cursor 是以 --remote-debugging-port=9222 启动的');
+    if (!win) throw new Error('No Cursor window found; make sure Cursor was started with --remote-debugging-port=9222');
     const cdp = new Cdp(win.ws);
     await cdp.connect();
     this.cdp = cdp;
@@ -941,7 +1076,7 @@ class Session {
     cdp.onclose = () => {
       if (this.cdp === cdp) {
         this.cdp = null;
-        this.emit({ t: 'status', ok: false, msg: 'Cursor 窗口连接已断开' });
+        this.emit({ t: 'status', ok: false, msg: 'Lost connection to the Cursor window' });
       }
     };
     cdp.on('Page.screencastFrame', p => this.onFrame(p));
@@ -1038,7 +1173,7 @@ class Session {
       const up = name.toUpperCase();
       spec = { code: /[A-Z]/.test(up) ? `Key${up}` : /\d/.test(up) ? `Digit${up}` : '', vk: up.charCodeAt(0), text: name };
     }
-    if (!spec) throw new Error(`未知按键: ${combo}`);
+    if (!spec) throw new Error(`Unknown key: ${combo}`);
     const withText = spec.text && !(modifiers & (MOD.Ctrl | MOD.Meta));
     const ev = { key: name, code: spec.code, windowsVirtualKeyCode: spec.vk, nativeVirtualKeyCode: spec.vk, modifiers };
     await this.cdp.send('Input.dispatchKeyEvent', { type: withText ? 'keyDown' : 'rawKeyDown', ...ev, ...(withText ? { text: spec.text } : {}) });
@@ -1055,7 +1190,7 @@ class Session {
 
   async sendMessage(text, submit) {
     const found = await this.cdp.evaluate(FOCUS_COMPOSER);
-    if (!found) throw new Error('没找到可见的聊天输入框：先在画面里打开 Agent 面板（或点「打开聊天」）');
+    if (!found) throw new Error('No visible chat input: open the Agent panel in "Screen" first (or tap "Open chat")');
     const busy = submit && await this.cdp.evaluate(helpersCall('agentState()?.busy'));
     await this.typeText(text);
     if (submit) await this.key('Enter');
@@ -1066,7 +1201,7 @@ class Session {
   async answerQuestion(qi, oi, part, text) {
     const call = p => helpersCall(`questionTarget(${Number(qi) || 0}, ${Number(oi) || 0}, ${JSON.stringify(p)})`);
     const pos = await this.cdp.evaluate(call(part));
-    if (!pos) throw new Error('这个问题已经不在了（可能已在电脑上回答）');
+    if (!pos) throw new Error('That question is gone (maybe it was answered on the computer)');
     await this.tapCss(pos.x, pos.y);
     if (part === 'option' && typeof text === 'string') {
       await new Promise(r => setTimeout(r, 150));
@@ -1078,11 +1213,11 @@ class Session {
   }
 
   async attachImage(data, name, type) {
-    if (!/^image\/(png|jpeg|gif|webp)$/.test(type) || typeof data !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(data)) throw new Error('只支持 PNG / JPEG / GIF / WebP 图片');
+    if (!/^image\/(png|jpeg|gif|webp)$/.test(type) || typeof data !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(data)) throw new Error('Only PNG / JPEG / GIF / WebP images are supported');
     const ok = await this.cdp.evaluate(pasteImage(data, String(name || 'image').replace(/[^\w.\-]/g, '_').slice(0, 60), type));
-    if (ok === null) throw new Error('没找到可见的聊天输入框：先在画面里打开 Agent 面板（或点「打开聊天」）');
-    if (!ok) throw new Error('Cursor 没有接收这张图片（当前模型可能不支持图片）');
-    this.emit({ t: 'status', ok: true, msg: '图片已附加到 Cursor 输入框，写好文字后点发送' });
+    if (ok === null) throw new Error('No visible chat input: open the Agent panel in "Screen" first (or tap "Open chat")');
+    if (!ok) throw new Error("Cursor didn't accept the image (the current model may not support images)");
+    this.emit({ t: 'status', ok: true, msg: 'Image attached in Cursor; type your message and tap Send' });
   }
 
   async handle(msg) {
@@ -1091,7 +1226,7 @@ class Session {
     if (msg.t === 'mode') return this.setMode(msg.mode);
     if (msg.t === 'visible') { this.visible = Boolean(msg.v); return; }
     if (msg.t === 'lang') { updateDevice(this.deviceId, { lang: msg.v === 'en' ? 'en' : 'zh' }); return; }
-    if (!this.cdp) throw new Error('尚未连接到 Cursor 窗口');
+    if (!this.cdp) throw new Error('Not connected to a Cursor window yet');
     switch (msg.t) {
       case 'openMenu': return this.openMenu(msg.kind);
       case 'pickMenu': return this.pickMenu(msg.kind, msg.label);
@@ -1122,7 +1257,7 @@ class Session {
         if (this.mode !== 'screen') return;
         await this.cdp.send('Page.stopScreencast');
         return this.startScreencast();
-      default: throw new Error(`未知指令: ${msg.t}`);
+      default: throw new Error(`Unknown command: ${msg.t}`);
     }
   }
 
@@ -1194,48 +1329,48 @@ async function handleApi(req, res, route) {
   }
 
   if (route === '/api/pair' && req.method === 'POST') {
-    if (lockedOut(ip)) return json(req, res, 429, { error: '尝试次数过多，请 15 分钟后再试' });
+    if (lockedOut(ip)) return json(req, res, 429, { error: 'Too many attempts; try again in 15 minutes' });
     const { code, name, totp } = await readJson(req);
     if (!pairingValid(code)) {
       recordFailure(ip);
-      return json(req, res, 401, { error: '配对链接无效或已过期（10 分钟内有效，只能用一次）。请在电脑上重新运行 npm run pair' });
+      return json(req, res, 401, { error: 'The pairing link is invalid or expired (valid 10 minutes, single use). Run npm run pair on the computer again.' });
     }
     if (totpConfig() && !verifyTotp(totp)) {
       if (totp) recordFailure(ip);
-      return json(req, res, 401, { needTotp: true, error: totp ? '验证码不对' : '' });
+      return json(req, res, 401, { needTotp: true, error: totp ? 'Wrong code' : '' });
     }
     consumePairing();
     const { device: added, token } = addDevice(name);
-    console.log(`[pair] 新设备「${added.name}」 ip=${ip}`);
+    console.log(`[pair] New device "${added.name}" ip=${ip}`);
     return json(req, res, 200, { token });
   }
 
-  if (!device) return json(req, res, 401, { error: '设备未配对' });
+  if (!device) return json(req, res, 401, { error: 'Device not paired' });
 
   if (route === '/api/totp' && req.method === 'POST') {
-    if (lockedOut(ip)) return json(req, res, 429, { error: '尝试次数过多，请 15 分钟后再试' });
+    if (lockedOut(ip)) return json(req, res, 429, { error: 'Too many attempts; try again in 15 minutes' });
     const { code } = await readJson(req);
     if (!verifyTotp(code)) {
       recordFailure(ip);
-      return json(req, res, 401, { error: '验证码不对' });
+      return json(req, res, 401, { error: 'Wrong code' });
     }
     updateDevice(device.id, { verifiedAt: Date.now() });
     return json(req, res, 200, { ok: true });
   }
-  if (needsTotp(device)) return json(req, res, 401, { needTotp: true, error: '需要二次验证' });
+  if (needsTotp(device)) return json(req, res, 401, { needTotp: true, error: 'Two-factor verification required' });
 
   if (route === '/api/devices') return json(req, res, 200, { devices: listDevices().map(d => deviceView(d, device)) });
   if (route === '/api/devices/remove' && req.method === 'POST') {
     const { id } = await readJson(req);
     removeDevice(String(id));
     closeEventStreams(String(id));
-    console.log(`[unpair] 移除设备 ${id}（操作来自「${device.name}」）`);
+    console.log(`[unpair] Removed device ${id} (from "${device.name}")`);
     return json(req, res, 200, { ok: true });
   }
   if (route === '/api/logout' && req.method === 'POST') {
     removeDevice(device.id);
     closeEventStreams(device.id);
-    console.log(`[unpair] 设备「${device.name}」自己退出`);
+    console.log(`[unpair] Device "${device.name}" unpaired itself`);
     return json(req, res, 200, { ok: true });
   }
 
@@ -1243,7 +1378,7 @@ async function handleApi(req, res, route) {
   if (route === '/api/push/key') return json(req, res, 200, { key: pushPublicKey() });
   if (route === '/api/push/subscribe' && req.method === 'POST') {
     const { sub } = await readJson(req);
-    if (!/^https:\/\//.test(sub?.endpoint || '') || !sub.keys?.p256dh || !sub.keys?.auth) return json(req, res, 400, { error: '订阅信息无效' });
+    if (!/^https:\/\//.test(sub?.endpoint || '') || !sub.keys?.p256dh || !sub.keys?.auth) return json(req, res, 400, { error: 'Invalid subscription' });
     updateDevice(device.id, { push: { endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } } });
     return json(req, res, 200, { ok: true });
   }
@@ -1252,8 +1387,8 @@ async function handleApi(req, res, route) {
     return json(req, res, 200, { ok: true });
   }
   if (route === '/api/push/test' && req.method === 'POST') {
-    await deliver({ kind: 'test', win: '', title: 'Cursor Remote', body: '测试通知：能看到这条，说明通知已经通了 ✅',
-      en: { body: 'Test notification: if you can see this, notifications work ✅' } }, device.id);
+    await deliver({ kind: 'test', win: '', title: 'Cursor Remote', body: 'Test notification: if you see this, notifications are working ✅',
+      zh: { body: '测试通知：能看到这条，说明通知已经通了 ✅' } }, device.id);
     return json(req, res, 200, { ok: true });
   }
   return json(req, res, 404, { error: 'not found' });
@@ -1310,9 +1445,9 @@ wss.on('connection', (ws, req) => {
     queue = queue.then(async () => {
       try {
         const queued = await session.handle(msg);
-        if (msg.t === 'type') session.emit({ t: 'status', ok: true, msg: '已发送' });
-        if (msg.t === 'queue' && msg.action === 'edit') session.emit({ t: 'status', ok: true, msg: '已修改，仍在排队' });
-        if (msg.t === 'send') session.emit({ t: 'status', ok: true, msg: queued ? 'Agent 正在运行，已加入排队，这一轮结束后自动发送' : '已发送' });
+        if (msg.t === 'type') session.emit({ t: 'status', ok: true, msg: 'Sent' });
+        if (msg.t === 'queue' && msg.action === 'edit') session.emit({ t: 'status', ok: true, msg: 'Updated, still queued' });
+        if (msg.t === 'send') session.emit({ t: 'status', ok: true, msg: queued ? 'Agent is running; queued, and it sends automatically when this turn ends' : 'Sent' });
       } catch (e) {
         session.emit({ t: 'status', ok: false, msg: e.message });
       }
@@ -1333,11 +1468,11 @@ function offerFirstPairing() {
   const base = appBase();
   if (!base) return;
   const { link, minutes } = createPairing(base);
-  printQr(`还没有配对的设备。用手机扫码完成配对（${minutes} 分钟内有效；过期后运行 npm run pair）`, link);
+  printQr(`No paired devices yet. Scan with your phone to pair (${minutes} minutes; run npm run pair again if it expires)`, link);
 }
 
 function printQr(label, url) {
-  console.log(`\n${label}：${url}`);
+  console.log(`\n${label}:\n${url}`);
   qrcode.generate(url, { small: true });
 }
 
@@ -1389,7 +1524,7 @@ async function syncApp() {
     await putFile(name, buf, remote.get(name));
     changed++;
   }
-  if (changed) console.log(`已同步 ${changed} 个 App 文件到 GitHub Pages`);
+  if (changed) console.log(`Synced ${changed} app file(s) to GitHub Pages`);
 }
 
 // Writes the current tunnel address (encrypted) to url.json, so the app on GitHub Pages can find this relay.
@@ -1397,47 +1532,52 @@ async function publishUrl(url) {
   try {
     await syncApp();
   } catch (e) {
-    console.log(`!! 同步 App 文件失败：${e.message}`);
+    console.log(`!! Failed to sync app files: ${e.message}`);
   }
-  if (!await waitReachable(url)) console.log('!! 新地址暂时无法从外网访问，仍然尝试发布');
+  if (!await waitReachable(url)) console.log('!! New address is not reachable from the public internet yet; publishing anyway');
   try {
     const remote = await remoteShas();
     await putFile('url.json', Buffer.from(JSON.stringify(encryptUrl(url)) + '\n'), remote.get('url.json'));
-    console.log(`已发布最新地址（GitHub Pages 约 1 分钟后生效）。手机 App 固定地址：${appUrl()}`);
+    console.log(`Published the latest address (GitHub Pages takes about 1 minute). Phone app URL: ${appUrl()}`);
     offerFirstPairing();
   } catch (e) {
-    console.log(`!! 发布地址失败：${e.message}`);
+    console.log(`!! Failed to publish address: ${e.message}`);
   }
 }
 
+function cloudflaredBin() {
+  const local = path.join(__dirname, 'tools', process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
+  return fs.existsSync(local) ? local : 'cloudflared';
+}
+
 function startTunnel() {
-  const child = spawn('cloudflared', ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${PORT}`], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(cloudflaredBin(), ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${PORT}`], { stdio: ['ignore', 'pipe', 'pipe'] });
   let shown = false;
   const scan = buf => {
     const m = !shown && String(buf).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
     if (m) {
       shown = true;
-      console.log(`\n公网地址：${m[0]}`);
+      console.log(`\nPublic URL: ${m[0]}`);
       saveState({ relayUrl: m[0] });
       if (PUBLISH_REPO) publishUrl(m[0]);
       else {
-        console.log('（每次重启地址都会变，配对过的手机需要重新配对；运行 npm run setup 可获得固定地址）');
+        console.log('(Address changes on every restart; paired phones must re-pair unless you run npm run setup for a fixed address)');
         offerFirstPairing();
       }
     }
   };
   child.stdout.on('data', scan);
   child.stderr.on('data', scan);
-  child.on('error', () => console.log('!! 找不到 cloudflared，请先运行：brew install cloudflared'));
-  child.on('exit', code => { console.log(`!! cloudflared 已退出 (code ${code})`); process.exit(1); });
+  child.on('error', () => console.log('!! cloudflared not found. Install it: winget install --id Cloudflare.cloudflared  (or brew install cloudflared)'));
+  child.on('exit', code => { console.log(`!! cloudflared exited (code ${code})`); process.exit(1); });
   const stop = () => { child.kill(); process.exit(0); };
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
 }
 
 server.listen(PORT, TUNNEL ? '127.0.0.1' : HOST, async () => {
-  console.log(`Cursor Remote Lite 已启动，端口 ${PORT}`);
-  console.log(`已配对 ${listDevices().length} 台设备。添加新设备：npm run pair`);
+  console.log(`Cursor Remote Lite started on port ${PORT}`);
+  console.log(`${listDevices().length} device(s) paired. Add another: npm run pair`);
   startWatcher({
     listWindows,
     openCdp: async ws => { const c = new Cdp(ws); await c.connect(); return c; },
@@ -1445,17 +1585,17 @@ server.listen(PORT, TUNNEL ? '127.0.0.1' : HOST, async () => {
   });
   try {
     const wins = await listWindows();
-    console.log(`已连上 Cursor，${wins.length} 个窗口：${wins.map(w => w.title).join(' | ')}`);
+    console.log(`Connected to Cursor, ${wins.length} window(s): ${wins.map(w => w.title).join(' | ')}`);
   } catch {
-    console.log(`!! 连不上 ${CDP_URL}。请用 ./start-cursor.sh（Windows: start-cursor.ps1）重新启动 Cursor（带 --remote-debugging-port=9222）`);
+    console.log(`!! Cannot reach ${CDP_URL}. Restart Cursor with ./start-cursor.sh (Windows: start-cursor.ps1) so it uses --remote-debugging-port=9222`);
   }
   if (TUNNEL) {
-    console.log('正在建立 Cloudflare 公网隧道…');
+    console.log('Opening Cloudflare public tunnel…');
     startTunnel();
   } else {
     const ips = Object.values(os.networkInterfaces()).flat()
       .filter(i => i && i.family === 'IPv4' && !i.internal).map(i => i.address);
-    for (const ip of ips) console.log(`  局域网地址：http://${ip}:${PORT}/`);
+    for (const ip of ips) console.log(`  LAN URL: http://${ip}:${PORT}/`);
     if (ips[0]) {
       saveState({ relayUrl: `http://${ips[0]}:${PORT}/` });
       offerFirstPairing();

@@ -1,0 +1,147 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without v prefix (workflow_dispatch only)'
+        required: false
+        default: '1.6.0'
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        working-directory: android
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', inputs.version || '0.0.0') }}
+        run: gradle assembleRelease --no-daemon
+
+      - name: Sign APK
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > release.p12
+          else
+            export KEYSTORE_PASSWORD=throwaway
+            keytool -genkeypair -keystore release.p12 -storetype PKCS12 -storepass "$KEYSTORE_PASSWORD" \
+              -alias key -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Cursor Remote Lite"
+          fi
+          "$BT/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+          "$BT/apksigner" sign --ks release.p12 --ks-type PKCS12 --ks-pass env:KEYSTORE_PASSWORD --out CursorRemote.apk aligned.apk
+          "$BT/apksigner" verify --print-certs CursorRemote.apk
+          rm -f release.p12
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CursorRemote-apk
+          path: CursorRemote.apk
+
+  windows:
+    needs: apk
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: CursorRemote-apk
+          path: .
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ inputs.version || '1.6.0' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build EXE + MSI
+        shell: pwsh
+        run: |
+          dotnet tool uninstall --global wix 2>$null
+          dotnet tool install --global wix --version 5.0.2
+          $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
+          powershell -ExecutionPolicy Bypass -File .\packaging\windows\build.ps1 `
+            -Version '${{ steps.ver.outputs.version }}' `
+            -ApkPath (Resolve-Path .\CursorRemote.apk)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CursorRemote-windows
+          path: |
+            packaging/out/CursorRemote.exe
+            packaging/out/CursorRemote.msi
+            packaging/out/CursorRemote-*-win-x64.zip
+
+  release:
+    needs: [apk, windows]
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect assets
+        run: |
+          mkdir -p dist
+          cp artifacts/CursorRemote-apk/CursorRemote.apk dist/
+          cp artifacts/CursorRemote-windows/CursorRemote.exe dist/
+          cp artifacts/CursorRemote-windows/CursorRemote.msi dist/
+          ls -lh dist
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES=$(cat <<'EOF'
+          ## Cursor Remote ${{ github.ref_name }}
+
+          ### Downloads
+          - **CursorRemote.exe** — Windows app (self-extracting). Double-click to install payload and start. If a phone is connected over ADB and/or `CursorRemote.apk` is in the same folder, pairing runs automatically.
+          - **CursorRemote.msi** — Windows installer (Start Menu shortcut).
+          - **CursorRemote.apk** — Android app (**Cursor Remote**).
+
+          ### First run
+          1. Install/run the Windows EXE or MSI.
+          2. Install the APK on your phone *or* leave `CursorRemote.apk` next to the EXE with USB debugging enabled — the app will `adb install` and open the pairing deep link for you.
+          3. Keep the Cursor Remote window open while you use your phone.
+          EOF
+          )
+          gh release create "$GITHUB_REF_NAME" \
+            dist/CursorRemote.exe \
+            dist/CursorRemote.msi \
+            dist/CursorRemote.apk \
+            --title "Cursor Remote $GITHUB_REF_NAME" \
+            --notes "$NOTES"
