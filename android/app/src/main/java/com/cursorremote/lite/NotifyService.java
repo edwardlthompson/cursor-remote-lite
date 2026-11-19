@@ -67,13 +67,13 @@ public class NotifyService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         createChannels();
-        Notification.Builder listenBuilder = builder(CH_LISTEN)
+        // Listening channel is IMPORTANCE_MIN with no sound — keep the shade entry quiet.
+        Notification listening = builder(CH_LISTEN)
                 .setContentTitle(tr("Cursor Remote 正在等待 Agent 的消息", "Cursor Remote is listening for the Agent"))
                 .setContentText(tr("Agent 完成或需要你确认时会提醒你", "You'll be alerted when the Agent finishes or needs your OK"))
                 .setContentIntent(openApp(null, null, 0))
-                .setOngoing(true);
-        if (Build.VERSION.SDK_INT >= 26) listenBuilder.setSilent(true);
-        Notification listening = listenBuilder.build();
+                .setOngoing(true)
+                .build();
         if (Build.VERSION.SDK_INT >= 34) startForeground(LISTEN_ID, listening, ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING);
         else startForeground(LISTEN_ID, listening);
 
