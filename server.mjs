@@ -196,18 +196,22 @@ const FOCUS_COMPOSER = `(() => {
   return true;
 })()`;
 
-// Cursor accepts images pasted into the composer; a synthetic paste event carrying a File works the same way.
+// Cursor 2.x shows attached images as .ui-prompt-input-image-preview (legacy: .context-pill-image).
+const IMAGE_ATTACH_COUNT = `() => document.querySelectorAll(
+  '.ui-prompt-input-image-preview, .context-pill-image, [aria-label^="Remove image"]'
+).length`;
+
+// Fallback: synthetic paste into the focused composer (older Cursor builds without a file input).
 const pasteImage = (b64, name, type) => `(async () => {
   if (!${FOCUS_COMPOSER}) return null;
   const ed = document.activeElement.closest('[contenteditable="true"]') || document.activeElement;
-  const pills = () => document.querySelectorAll('.context-pill-image').length;
-  const before = pills();
+  const before = (${IMAGE_ATTACH_COUNT})();
   const bin = Uint8Array.from(atob(${JSON.stringify(b64)}), c => c.charCodeAt(0));
   const dt = new DataTransfer();
   dt.items.add(new File([bin], ${JSON.stringify(name)}, { type: ${JSON.stringify(type)} }));
   ed.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-  for (let i = 0; i < 20 && pills() <= before; i++) await new Promise(r => setTimeout(r, 100));
-  return pills() > before;
+  for (let i = 0; i < 25 && (${IMAGE_ATTACH_COUNT})() <= before; i++) await new Promise(r => setTimeout(r, 100));
+  return (${IMAGE_ATTACH_COUNT})() > before;
 })()`;
 
 // Runs inside Cursor's renderer (injected via toString). Emits only whitelisted tags with escaped text, never raw DOM HTML.
@@ -1474,11 +1478,59 @@ class Session {
   }
 
   async attachImage(data, name, type) {
-    if (!/^image\/(png|jpeg|gif|webp)$/.test(type) || typeof data !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(data)) throw new Error('Only PNG / JPEG / GIF / WebP images are supported');
-    const ok = await this.cdp.evaluate(pasteImage(data, String(name || 'image').replace(/[^\w.\-]/g, '_').slice(0, 60), type));
-    if (ok === null) throw new Error('No visible chat input: open the Agent panel in "Screen" first (or tap "Open chat")');
-    if (!ok) throw new Error("Cursor didn't accept the image (the current model may not support images)");
-    this.emit({ t: 'status', ok: true, msg: 'Image attached in Cursor; type your message and tap Send' });
+    if (!/^image\/(png|jpeg|gif|webp)$/.test(type) || typeof data !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(data)) {
+      throw new Error('Only PNG / JPEG / GIF / WebP images are supported');
+    }
+    const safe = String(name || 'image').replace(/[^\w.\-]/g, '_').slice(0, 60);
+    const ext = ({ 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'image/jpeg': '.jpg' })[type] || '.jpg';
+    const fileName = /\.\w+$/.test(safe) ? safe : safe + ext;
+    const before = await this.cdp.evaluate(`(${IMAGE_ATTACH_COUNT})()`);
+    const waited = async () => {
+      for (let i = 0; i < 30; i++) {
+        if (await this.cdp.evaluate(`(${IMAGE_ATTACH_COUNT})()`) > before) return true;
+        await new Promise(r => setTimeout(r, 100));
+      }
+      return false;
+    };
+
+    // Preferred path: set files on Cursor's hidden composer <input type=file> (DOM.setFileInputFiles).
+    // Synthetic ClipboardEvent paste can still attach, but success used to be detected via the obsolete
+    // .context-pill-image selector — the phone showed "didn't accept" even when a preview appeared.
+    const tmp = path.join(os.tmpdir(), `crl-attach-${process.pid}-${Date.now()}-${fileName}`);
+    await fs.promises.writeFile(tmp, Buffer.from(data, 'base64'));
+    try {
+      try {
+        await this.cdp.send('DOM.enable').catch(() => {});
+        const { root } = await this.cdp.send('DOM.getDocument', { depth: 0 });
+        const selectors = [
+          '.agent-prompt-input-root input[type=file]',
+          '.ui-prompt-input-toolbar input[type=file]',
+          'input[type=file][accept*="image"]',
+          'input[type=file]',
+        ];
+        let nodeId = 0;
+        for (const sel of selectors) {
+          const r = await this.cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: sel });
+          if (r?.nodeId) { nodeId = r.nodeId; break; }
+        }
+        if (nodeId) {
+          await this.cdp.send('DOM.setFileInputFiles', { nodeId, files: [tmp] });
+          if (await waited()) {
+            this.emit({ t: 'status', ok: true, msg: 'Image attached in Cursor; type your message and tap Send' });
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('!! setFileInputFiles failed', e.message || e);
+      }
+
+      const ok = await this.cdp.evaluate(pasteImage(data, fileName, type));
+      if (ok === null) throw new Error('No visible chat input: open the Agent panel in "Screen" first (or tap "Open chat")');
+      if (!ok) throw new Error("Cursor didn't accept the image (open the Agent chat, or the model may not support images)");
+      this.emit({ t: 'status', ok: true, msg: 'Image attached in Cursor; type your message and tap Send' });
+    } finally {
+      fs.promises.unlink(tmp).catch(() => {});
+    }
   }
 
   async handle(msg) {

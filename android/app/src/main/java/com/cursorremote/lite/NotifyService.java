@@ -54,7 +54,7 @@ public class NotifyService extends Service {
     }
 
     static void start(Context c) {
-        if (!enabled(c)) return;
+        // Always start: even without push config this keeps the process (and WebView socket) alive.
         Intent i = new Intent(c, NotifyService.class);
         if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i);
         else c.startService(i);
@@ -77,9 +77,10 @@ public class NotifyService extends Service {
         if (Build.VERSION.SDK_INT >= 34) startForeground(LISTEN_ID, listening, ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING);
         else startForeground(LISTEN_ID, listening);
 
+        // Keepalive-only: stay sticky in memory; event stream starts when notifications are configured.
         if (!enabled(this)) {
-            stopSelf();
-            return START_NOT_STICKY;
+            running = false;
+            return START_STICKY;
         }
         if (worker == null || !worker.isAlive()) {
             running = true;

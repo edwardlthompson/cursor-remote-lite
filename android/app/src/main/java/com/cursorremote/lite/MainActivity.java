@@ -114,20 +114,22 @@ public class MainActivity extends Activity {
             if (state != null) web.restoreState(state);
             else load();
         }
+        // Always keep a foreground service so the process (and WebSocket) survive Home / app switch.
         NotifyService.start(this);
     }
 
-    // WebView's onPause/onResume flip document.visibilityState, which tells the relay whether to notify.
+    // Do NOT call web.onPause() — that freezes JS timers and drops the relay WebSocket when the
+    // app is backgrounded. Stay connected until the user Unpairs / force-stops.
     @Override
     protected void onPause() {
         super.onPause();
-        web.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         web.onResume();
+        NotifyService.start(this);
         // Resume a download that waited for “install unknown apps” permission.
         String pending = prefs.getString("pendingUpdateUrl", null);
         if (pending != null && canInstallPackages()) {
@@ -250,7 +252,9 @@ public class MainActivity extends Activity {
 
     private void disableNotify() {
         prefs.edit().remove(NotifyService.PREF).apply();
+        // Restart as keepalive-only (no Agent event stream) so the WebSocket process stays alive.
         stopService(new Intent(this, NotifyService.class));
+        NotifyService.start(this);
     }
 
     // cursorremote://pair?app=<https app address>&d=<url key>.<one-time code>, handed over by the web app in a browser.
@@ -400,6 +404,18 @@ public class MainActivity extends Activity {
         public void update(String url) {
             if (url == null || !url.startsWith("https://")) return;
             runOnUiThread(() -> downloadUpdate(url));
+        }
+
+        // Wipe WebView HTTP + SW caches then reload Pages (fixes stuck old UI shells).
+        @JavascriptInterface
+        public void clearCacheAndReload() {
+            runOnUiThread(() -> {
+                web.clearCache(true);
+                web.clearHistory();
+                String url = appUrl();
+                if (url.isEmpty()) load();
+                else web.loadUrl(url + (url.contains("?") ? "&" : "?") + "crbust=" + System.currentTimeMillis());
+            });
         }
     }
 }

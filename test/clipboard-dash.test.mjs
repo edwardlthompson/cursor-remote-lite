@@ -33,6 +33,22 @@ test('app has clipboard buttons and tablet-dash layout', () => {
   assert.match(app, /id="paneSplit"/);
   assert.match(app, /syncTabletDash/);
   assert.match(app, /--dual-split/);
+  assert.match(app, /row composer/);
+  assert.match(app, /composer-actions/);
+  assert.match(app, /@media \(max-width: 520px\)/);
+  assert.match(app, /files-only/);
+  assert.match(app, /lockPaneTab/);
+  assert.match(app, /readingPinnedFile/);
+});
+
+test('image attach uses file input + modern preview selectors', () => {
+  const sw = fs.readFileSync(path.join(root, '..', 'app', 'sw.js'), 'utf8');
+  assert.match(server, /ui-prompt-input-image-preview/);
+  assert.match(server, /DOM\.setFileInputFiles/);
+  assert.match(server, /IMAGE_ATTACH_COUNT/);
+  assert.match(app, /imageMime/);
+  assert.match(sw, /cursor-remote-v22/);
+  assert.match(sw, /cache: 'no-store'/);
 });
 
 test('Dual pane editor sync and file picker suggest exist', () => {

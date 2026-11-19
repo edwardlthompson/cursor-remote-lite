@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+## 1.9.1
+
+- **Files reading-only**: hide composer / History on Files; `[hidden]` now actually hides (`display:flex` was winning).
+- **No file hopping**: Files mode never auto-follows Cursor tab polls; Changes updates no longer steal an open preview.
+- **Stay connected in background**: Android no longer pauses the WebView; foreground keepalive always runs; UI heartbeat keeps the relay session alive until you Unpair.
+- **Stuck UI**: SW `cache: no-store` + ⋯ → Reload app UI (UI 22).
+
 ## 1.9.0
 
 - **Dual pane layout**: **Chat | Dual pane | Files | Screen** — left / both (draggable split) / right / desktop Screen on any landscape device.

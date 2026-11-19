@@ -124,21 +124,35 @@
   /* Quick-prompt chips removed — use slash / recipes instead; frees footer space. */
   #quickPrompts { display: none !important; }
   #chatTools { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+  #chatTools[hidden], .row.composer[hidden] { display: none !important; }
   #chatTools::-webkit-scrollbar { display: none; }
   #chatTools button { font-size: 12.5px; padding: 3px 10px; border-radius: 14px; flex: none; white-space: nowrap; }
   #chatTools #pickModel { flex: 0 1 auto; min-width: 84px; overflow: hidden; text-overflow: ellipsis; }
-  .row { display: flex; gap: 8px; min-width: 0; align-items: flex-end; }
+  /* Message field on its own row so icons never crush the textarea on phones. */
+  .row.composer { display: flex; flex-direction: column; gap: 8px; min-width: 0; align-items: stretch; }
+  .composer-actions { display: flex; gap: 8px; min-width: 0; align-items: center; }
+  .composer-actions .spacer { flex: 1; min-width: 0; }
   footer.locked .row, footer.locked #chatTools { opacity: 0.45; pointer-events: none; }
   #diffView, #paneDiffBody { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 55dvh; overflow: auto; background: #1e1e1e; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
   #diffView .add, #paneDiffBody .add { color: #73c991; }
   #diffView .del, #paneDiffBody .del { color: #f14c4c; }
   #diffView .meta, #paneDiffBody .meta { color: #888; }
-  textarea { flex: 1; min-width: 0; min-height: 40px; max-height: 32vh; padding: 9px 10px; resize: none; font-size: 16px; line-height: 1.35; }
+  .row.composer textarea { flex: none; width: 100%; min-width: 0; min-height: 40px; max-height: 32vh; padding: 9px 10px; resize: none; font-size: 16px; line-height: 1.35; box-sizing: border-box; }
   #img { flex: none; height: 40px; width: 40px; padding: 0; display: flex; align-items: center; justify-content: center; color: #bbb; }
   #mic { display: none; }
   body.voice #mic { flex: none; height: 40px; width: 40px; padding: 0; display: flex; align-items: center; justify-content: center; color: #bbb; }
   #mic.on { color: #fff; background: #c33; border-color: #e55; animation: pulse 1.2s ease-in-out infinite; }
-  #send { flex: none; height: 40px; padding: 0 16px; background: #0e639c; border-color: #1177bb; color: #fff; font-weight: 600; }
+  #send { flex: none; height: 40px; padding: 0 16px; margin-left: auto; background: #0e639c; border-color: #1177bb; color: #fff; font-weight: 600; }
+  /* Clipboard icons stay in ⋯ menu on phones; show inline when there is room. */
+  @media (max-width: 520px) {
+    #clipPush, #clipPull { display: none; }
+  }
+  /* Files tab = reading only — no chat composer / History tools. */
+  body.files-only footer .row.composer,
+  body.files-only footer #chatTools,
+  body.files-only footer #presenceBar,
+  body.files-only footer #quickPrompts { display: none !important; }
+  body.files-only footer { padding: 4px 10px; gap: 0; border-top-color: #2a2a2a; }
   #msg { font-size: 12px; color: #888; min-height: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #msg.err { color: #f77; }
 
@@ -417,14 +431,16 @@
     <button id="pickHistory">History</button>
     <button id="newChat">+ New</button>
   </div>
-  <div class="row">
+  <div class="row composer">
     <textarea id="text" rows="1" placeholder="Message Cursor Agent…" enterkeyhint="send"></textarea>
-    <button id="img" title="Attach image" aria-label="Attach image"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></button>
-    <input id="imgFile" type="file" accept="image/*" hidden>
-    <button id="clipPush" title="Paste phone clipboard into Cursor" aria-label="Paste clipboard to Cursor"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="3" width="10" height="4" rx="1"/><path d="M9 3v2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M12 11v6M9 14h6"/></svg></button>
-    <button id="clipPull" title="Copy selection or last code block from Cursor" aria-label="Copy from Cursor"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="1"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></button>
-    <button id="mic" title="Voice input" aria-label="Voice input"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-    <button id="send">Send</button>
+    <div class="composer-actions">
+      <button id="img" title="Attach image" aria-label="Attach image"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></button>
+      <input id="imgFile" type="file" accept="image/*" hidden>
+      <button id="clipPush" title="Paste phone clipboard into Cursor" aria-label="Paste clipboard to Cursor"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="3" width="10" height="4" rx="1"/><path d="M9 3v2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M12 11v6M9 14h6"/></svg></button>
+      <button id="clipPull" title="Copy selection or last code block from Cursor" aria-label="Copy from Cursor"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="1"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></button>
+      <button id="mic" title="Voice input" aria-label="Voice input"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <button id="send">Send</button>
+    </div>
   </div>
   <div id="msg"></div>
 </footer>
@@ -454,6 +470,7 @@
 <script src="i18n.js"></script>
 <script>
 const $ = id => document.getElementById(id);
+const UI_BUILD = 22; // bump when shell layout must force-refresh on phones
 const PRIMARY = /^(run|allow|accept|approve|keep|continue|build|yes|运行|允许|接受|继续)/i;
 const store = {
   get: k => localStorage.getItem('cr-' + k),
@@ -725,7 +742,8 @@ function connect() {
       authed = true; failures = 0;
       ungate();
       $('dot').className = 'ok';
-      status('Connected');
+      status('Connected · UI ' + UI_BUILD);
+      startRelayHeartbeat();
       send({ t: 'mode', mode });
       send({ t: 'windows' });
       const fromNotice = window.CursorRemoteApp?.takeOpenWin?.();
@@ -735,7 +753,9 @@ function connect() {
       if (fromAction) setTimeout(() => handleNotifAction(fromAction, store.get('window')), 400);
       sentWidth = 0;
       applyQuality();
-      send({ t: 'visible', v: document.visibilityState === 'visible' });
+      // Stay "present" for the relay while the socket is up — do not drop control just because the
+      // phone screen is off; NotifyService + no WebView pause keep the process alive.
+      send({ t: 'visible', v: true });
       send({ t: 'lang', v: I18N.lang });
       syncNotify();
       syncTabletDash();
@@ -877,6 +897,8 @@ function showPaneDiffUi() {
 let editorTabsCache = [];
 let editorsTimer = null;
 let lastSyncedActive = store.get('paneTab') || '';
+let tabLockUntil = 0;
+let tabLockName = '';
 let suggestTimer = null;
 let suggestSeq = 0;
 let pickHits = [];
@@ -886,25 +908,57 @@ let mdPreviewMode = store.get('mdPreview') !== 'off'; // default Preview for mar
 function inPaneMode() {
   return mode === 'pane' || mode === 'files' || document.body.classList.contains('dual-pane');
 }
+function tabKey(name) {
+  const n = String(name || '').trim();
+  if (/^Changes$/i.test(n)) return 'changes';
+  return (n.split(/[/\\]/).pop() || n).toLowerCase();
+}
+function tabMatch(a, b) {
+  return !!a && !!b && tabKey(a) === tabKey(b);
+}
 function rememberPaneTab(name) {
   lastSyncedActive = name || '';
   store.set('paneTab', lastSyncedActive || null);
+}
+function lockPaneTab(name, ms) {
+  rememberPaneTab(name);
+  tabLockName = name || '';
+  // Files = phone owns the view until the user picks another tab (no Cursor-led hopping).
+  const hold = ms != null ? ms : (mode === 'files' ? 86400000 : 8000);
+  tabLockUntil = Date.now() + hold;
+}
+function readingPinnedFile() {
+  return $('paneView').classList.contains('diffing')
+    && lastSyncedActive && !/^Changes$/i.test(lastSyncedActive);
 }
 
 function syncActiveEditorContent(tabs, { force = false } = {}) {
   if (!inPaneMode()) return;
   const list = tabs || [];
-  // Prefer a selected *file* tab. Agents often marks Changes selected too — don't let it
-  // steal the pane every poll once the user (or sync) opened a real file.
+  // Files tab: phone is source of truth — never auto-switch content from Cursor polls.
+  if (!force && mode === 'files') return;
+  // After a phone tap, Cursor may still report Changes (and chat tabs) as aria-selected
+  // for a few seconds — do not chase desktop selection during the lock window.
+  if (!force && Date.now() < tabLockUntil && tabLockName) return;
+
+  // Sticky phone pin: keep showing the open file even when Changes is also selected.
+  if (!force && lastSyncedActive && !/^Changes$/i.test(lastSyncedActive)
+      && list.some(t => tabMatch(t.name, lastSyncedActive))) {
+    if (paneFileCache && tabMatch(paneFileCache.name, lastSyncedActive) && readingPinnedFile()) return;
+    if (!readingPinnedFile()) send({ t: 'file', path: lastSyncedActive });
+    return;
+  }
+
+  // Prefer a selected *file* tab. Agents often marks Changes + chat title selected together.
   const activeFile = list.find(t => t.active && !/^Changes$/i.test(t.name));
   const active = activeFile
     || list.find(t => t.active)
     || list.find(t => !/^Changes$/i.test(t.name))
     || list[0];
   if (!active?.name) return;
-  if (!force && active.name === lastSyncedActive) return;
+  if (!force && tabMatch(active.name, lastSyncedActive)) return;
   if (!force && lastSyncedActive && !/^Changes$/i.test(lastSyncedActive)
-      && list.some(t => t.name === lastSyncedActive)
+      && list.some(t => tabMatch(t.name, lastSyncedActive))
       && /^Changes$/i.test(active.name)) {
     return;
   }
@@ -914,7 +968,6 @@ function syncActiveEditorContent(tabs, { force = false } = {}) {
     send({ t: 'changes' });
     return;
   }
-  // Load file preview into the dual/files pane (Cursor → phone).
   send({ t: 'file', path: active.name });
 }
 
@@ -931,17 +984,23 @@ function renderEditorTabs(tabs) {
   for (const t of editorTabsCache) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'et' + (t.active ? ' on' : '');
+    const on = lastSyncedActive ? tabMatch(t.name, lastSyncedActive) : !!t.active;
+    b.className = 'et' + (on ? ' on' : '');
     b.title = t.label || t.name;
     b.innerHTML = `<span class="en">${esc((t.dirty ? '● ' : '') + t.name)}</span><span class="ex" data-close="${esc(t.name)}" aria-label="Close">×</span>`;
     b.onclick = e => {
       if (e.target.closest('[data-close]')) {
         status('Closing…');
-        if (lastSyncedActive === t.name) lastSyncedActive = '';
+        if (tabMatch(lastSyncedActive, t.name)) {
+          lastSyncedActive = '';
+          store.set('paneTab', null);
+          tabLockName = '';
+          tabLockUntil = 0;
+        }
         return send({ t: 'editorClose', name: t.name });
       }
-      // Phone → Cursor focus + local preview (both ways).
-      rememberPaneTab(t.name);
+      // Phone → Cursor focus + local preview (both ways). Lock so polls cannot bounce to Changes.
+      lockPaneTab(t.name);
       status('Switching tab…');
       send({ t: 'editorFocus', name: t.name });
       if (/^Changes$/i.test(t.name)) {
@@ -1045,9 +1104,11 @@ function openPanePickPath(pathOrQuery) {
   const q = String(pathOrQuery || '').trim();
   if (!q) return status('Enter a file name (e.g. BUILD_PLAN.md)', false);
   showPanePicker(false);
-  lastSyncedActive = '';
+  const base = q.split(/[/\\]/).pop() || q;
+  lockPaneTab(base);
   status('Opening in Cursor…');
   send({ t: 'editorOpen', query: q });
+  if (/\.\w{1,16}$/.test(base)) send({ t: 'file', path: q });
 }
 function submitPanePicker() {
   const q = $('panePickInput').value.trim();
@@ -1076,7 +1137,9 @@ $('panePickHits').onclick = e => {
 function applyViews() {
   // Chat = left only · Dual pane = both (landscape) · Files = right only · Screen = desktop.
   const dual = isLandscape() && mode === 'pane';
+  const filesOnly = mode === 'files';
   document.body.classList.toggle('dual-pane', dual);
+  document.body.classList.toggle('files-only', filesOnly);
   if (dual) {
     $('chatView').classList.add('active');
     $('paneView').classList.add('active');
@@ -1087,15 +1150,20 @@ function applyViews() {
     $('paneView').classList.toggle('active', mode === 'pane' || mode === 'files');
     $('screenView').classList.toggle('active', mode === 'screen');
   }
-  $('chatTools').hidden = mode === 'screen';
+  // hidden= + [hidden]{display:none!important} — CSS display:flex alone ignores the hidden attribute.
+  $('chatTools').hidden = mode === 'screen' || filesOnly;
+  const composer = document.querySelector('footer .row.composer');
+  if (composer) composer.hidden = filesOnly;
 }
 
 function showChanges(m) {
   status('');
   changesCache = m.files || [];
   changesActions = m.actions || [];
-  showPaneFiles();
   renderDashChanges();
+  // Refresh the Changes list data only — never steal an open file preview.
+  // (Previously every changes poll called showPaneFiles() and bounced Dual/Files off the file.)
+  if (!readingPinnedFile()) showPaneFiles();
   if (!m.files.length) { if (sheetKind === 'changes' || sheetKind === 'diff') closeSheet(); return status('No pending changes'); }
   // Files pane already shows the list — skip the bottom sheet unless it is already open.
   if (inPaneMode() && sheetKind !== 'changes' && sheetKind !== 'diff') return;
@@ -1279,7 +1347,8 @@ function showMainMenu() {
       : standalone() ? '' : '<button class="opt" data-act="install"><span class="lbl">Add to home screen (opens like an app)</span></button>'}
     <button class="opt" data-act="clipPush"><span class="lbl">Paste clipboard → Cursor<span class="sub">Phone clipboard into the Agent composer</span></span></button>
     <button class="opt" data-act="clipPull"><span class="lbl">Copy Cursor → phone<span class="sub">Selection or last code block</span></span></button>
-    <button class="opt" data-act="reconnect"><span class="lbl">Reconnect</span></button>
+    <button class="opt" data-act="reloadUi"><span class="lbl">Reload app UI<span class="sub">Clear cache and fetch the latest Files / Dual pane shell (UI ${UI_BUILD})</span></span></button>
+    <button class="opt" data-act="reconnect"><span class="lbl">Reconnect relay</span></button>
     <button class="opt" data-act="voice"><span class="lbl">Voice button<span class="sub">Not needed if your keyboard has a mic</span></span><span class="switch ${store.get('voice') === 'on' ? 'on' : ''}"></span></button>
     <button class="opt" data-act="lang"><span class="lbl">语言 / Language</span><span class="tag">${I18N.lang === 'en' ? 'English' : '中文'}</span></button>
     <button class="opt" data-act="devices"><span class="lbl">Paired devices</span></button>
@@ -1435,8 +1504,18 @@ navigator.serviceWorker?.addEventListener('message', e => {
   if (e.data?.notifAction) handleNotifAction(e.data.notifAction, e.data.openWin);
 });
 document.addEventListener('visibilitychange', () => {
-  if (authed) send({ t: 'visible', v: document.visibilityState === 'visible' });
+  // Keep the relay session marked visible while connected — backgrounding must not idle us out.
+  if (authed) send({ t: 'visible', v: true });
 });
+
+let heartbeatTimer = null;
+function startRelayHeartbeat() {
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(() => {
+    if (!authed || !ws || ws.readyState !== 1) return;
+    try { ws.send(JSON.stringify({ t: 'visible', v: true })); } catch {}
+  }, 25000);
+}
 // Deep links from notification openWindow hashes
 (() => {
   const h = location.hash || '';
@@ -1527,6 +1606,20 @@ $('sheet').addEventListener('click', async e => {
   else if (act === 'appUpdate') {
     closeSheet();
     await checkAppUpdate(true);
+  }
+  else if (act === 'reloadUi') {
+    closeSheet();
+    status('Reloading UI…');
+    if (window.CursorRemoteApp?.clearCacheAndReload) {
+      window.CursorRemoteApp.clearCacheAndReload();
+      return;
+    }
+    Promise.resolve()
+      .then(() => caches?.keys?.() || [])
+      .then(keys => Promise.all((keys || []).map(k => caches.delete(k))))
+      .then(() => navigator.serviceWorker?.getRegistrations?.() || [])
+      .then(regs => Promise.all((regs || []).map(r => r.unregister())))
+      .finally(() => { location.href = location.pathname + '?crbust=' + Date.now(); });
   }
   else if (act === 'reconnect') { closeSheet(); ws?.close(); }
   else if (act === 'clipPush') { closeSheet(); $('clipPush').click(); }
@@ -1805,9 +1898,10 @@ $('vWrap').classList.toggle('on', store.get('wrap') !== 'off');
 function openFile(ref) {
   if (inPaneMode()) {
     // Dual pane: preview stays in the right pane (synced with Cursor tabs).
-    lastSyncedActive = String(ref || '').split('/').pop() || lastSyncedActive;
+    const base = String(ref || '').split(/[/\\]/).pop() || lastSyncedActive;
+    lockPaneTab(base);
     showPaneDiffUi();
-    $('paneDiffTitle').textContent = String(ref || '').split('/').pop() || 'File';
+    $('paneDiffTitle').textContent = base || 'File';
     $('paneDiffBody').innerHTML = '<div class="hint">Reading from the computer…</div>';
     $('paneDiffAct').innerHTML = '';
     send({ t: 'file', path: ref });
@@ -1883,7 +1977,11 @@ function updateMdModeToggle(show) {
 function renderPaneFile(m) {
   showPaneDiffUi();
   paneFileCache = m;
-  if (m.name) rememberPaneTab(m.name);
+  if (m.name) {
+    // Keep pin, but do not extend lock forever — allow intentional desktop-led switches later.
+    rememberPaneTab(m.name);
+    status('');
+  }
   $('paneDiffTitle').textContent = (m.name || 'File') + (m.truncated ? ' (truncated)' : '');
   $('paneDiffAct').classList.remove('show');
   $('paneDiffAct').innerHTML = ''; // no Changed-files / Diff footer on file preview
@@ -2189,8 +2287,19 @@ const addVoiceText = s => {
 };
 window.onVoice = s => { $('mic').classList.remove('on'); s ? (addVoiceText(s), status('')) : status("Didn't catch that, try again", false); };
 // Photos from phone cameras are several MB; shrink to something the model can read and the relay accepts.
+// Android gallery picks sometimes omit MIME type — sniff from extension / re-encode as JPEG.
+function imageMime(file) {
+  if (/^image\/(png|jpeg|gif|webp)$/.test(file.type)) return file.type;
+  const m = /\.(png|jpe?g|gif|webp)$/i.exec(file.name || '');
+  if (!m) return '';
+  return ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' })[m[1].toLowerCase()] || '';
+}
 async function shrinkImage(file) {
-  if (/^image\/(png|jpeg|gif|webp)$/.test(file.type) && file.size < 600e3) return file;
+  const mime = imageMime(file);
+  if (mime && file.size < 600e3) {
+    if (mime === file.type) return file;
+    return new File([file], file.name, { type: mime });
+  }
   const bmp = await createImageBitmap(file);
   let side = 1600, q = 0.85, blob;
   do {
@@ -2200,8 +2309,10 @@ async function shrinkImage(file) {
     c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
     blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
     side *= 0.75; q -= 0.1;
-  } while (blob.size > 1.5e6 && q > 0.4);
-  return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } while (blob && blob.size > 1.5e6 && q > 0.4);
+  if (!blob) throw new Error('encode failed');
+  const base = (file.name || 'image').replace(/\.\w+$/, '') || 'image';
+  return new File([blob], base + '.jpg', { type: 'image/jpeg' });
 }
 
 async function readPhoneClipboard() {
