@@ -28,12 +28,32 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Resolve Android version codes
+        id: aver
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VER="${GITHUB_REF_NAME#v}"
+            NAME="$GITHUB_REF_NAME"
+          else
+            VER="${{ inputs.version || '0.0.0' }}"
+            NAME="v$VER"
+          fi
+          IFS=. read -r MA MI PA <<< "${VER}."
+          MA=${MA:-0}; MI=${MI:-0}; PA=${PA:-0}
+          # Semver → monotonic code (1.8.2 → 10802). Floor above historical android.yml run_numbers (~170).
+          CODE=$((10#$MA * 10000 + 10#$MI * 100 + 10#$PA))
+          if [ "$CODE" -lt 200 ]; then CODE=$((CODE + 1000)); fi
+          echo "version_name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "Android $NAME (versionCode=$CODE)"
+
       - name: Build APK
         working-directory: android
         env:
           APP_URL: ${{ vars.APP_URL }}
-          VERSION_CODE: ${{ github.run_number }}
-          VERSION_NAME: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', inputs.version || '0.0.0') }}
+          VERSION_CODE: ${{ steps.aver.outputs.version_code }}
+          VERSION_NAME: ${{ steps.aver.outputs.version_name }}
         run: gradle assembleRelease --no-daemon
 
       - name: Sign APK

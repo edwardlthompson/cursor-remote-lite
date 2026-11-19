@@ -175,7 +175,7 @@ If you can't scan it, send the link shown below the QR code to your phone and op
 | Platform | Download |
 |---|---|
 | **Windows** | [CursorRemote.exe](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.exe) / [CursorRemote.msi](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.msi) — **system tray**, Start with Windows, keep-awake, ADB auto-pair |
-| **Linux** | [CursorRemote-linux-x64.deb](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-linux-x64.deb) or [tar.gz](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-1.8.2-linux-x64.tar.gz) → `cursor-remote` |
+| **Linux** | [CursorRemote-linux-x64.deb](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-linux-x64.deb) or [tar.gz](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-1.8.3-linux-x64.tar.gz) → `cursor-remote` |
 | **Android** | [CursorRemote.apk](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.apk) — no Google services required (Huawei OK). HarmonyOS NEXT needs Zhuoyitong before APKs. |
 | **iPhone** | Open the Pages URL in Safari → Share → **Add to Home Screen** |
 | **Cursor extension** | [cursor-remote-lite.vsix](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/cursor-remote-lite.vsix) |

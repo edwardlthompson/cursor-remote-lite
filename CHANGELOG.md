@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.3
+
+- **Android signing**: release APKs use a persistent GitHub Actions keystore (`KEYSTORE_B64`) so updates install over previous builds without uninstall.
+- **versionCode**: encode semver (e.g. 1.8.3 → 10803) instead of workflow `run_number`, so sideloads are never a “downgrade” vs older android.yml builds.
+
 ## 1.8.2
 
 - **Files tab + dual pane**: new **Files** button between Chat and Screen. Phone: full-height pane in the same layout as chat (list + empty state; diffs inline). Tablet landscape (≥900px): tapping **Files** shows chat and the Files pane side-by-side (chat left, changed files / diff right); window status strip unchanged.
