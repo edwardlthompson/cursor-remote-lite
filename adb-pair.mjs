@@ -111,7 +111,9 @@ export function pairOverAdb({ apkPath = '', install = true, pair = true } = {}) 
       } else {
         const uri = deepLink(base, data);
         for (const serial of devices) {
-          const r = adb(bin, ['-s', serial, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', uri]);
+          // Quote for the *device* shell so & in the query string is not interpreted.
+          const quoted = `'${uri.replace(/'/g, `'\\''`)}'`;
+          const r = adb(bin, ['-s', serial, 'shell', `am start -a android.intent.action.VIEW -d ${quoted}`]);
           const out = `${r.stdout || ''}${r.stderr || ''}`.trim();
           const ok = r.status === 0 && !/Error/i.test(out);
           results.push({
