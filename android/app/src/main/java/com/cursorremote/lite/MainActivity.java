@@ -98,6 +98,14 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(downloaded, done, Context.RECEIVER_EXPORTED);
         else registerReceiver(downloaded, done);
 
+        // Drop stale WebView / service-worker shells after an APK upgrade so Pages UI (e.g. Files tab) loads.
+        String ver = BuildConfigVersion.name(this);
+        if (!ver.equals(prefs.getString("clearedCacheFor", ""))) {
+            web.clearCache(true);
+            web.clearHistory();
+            prefs.edit().putString("clearedCacheFor", ver).apply();
+        }
+
         if (!openPairLink(getIntent())) {
             String win = getIntent().getStringExtra("win");
             String action = getIntent().getStringExtra("notifAction");

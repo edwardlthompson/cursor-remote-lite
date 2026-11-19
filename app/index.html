@@ -28,11 +28,11 @@
   header { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #252526; border-bottom: 1px solid #333; min-width: 0; }
   #dot { width: 9px; height: 9px; border-radius: 50%; background: #c33; flex: none; }
   #dot.ok { background: #3c3; }
-  #title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; background: none; border: none; padding: 4px 2px; text-align: left; color: #ccc; font-size: 14px; }
+  #title { flex: 1; min-width: 0; max-width: 42%; display: flex; align-items: center; gap: 4px; background: none; border: none; padding: 4px 2px; text-align: left; color: #ccc; font-size: 14px; }
   #title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #title::after { content: "▾"; color: #888; flex: none; }
   .seg { display: flex; flex: none; border: 1px solid #3c3c3c; border-radius: 8px; overflow: hidden; }
-  .seg button { border: none; border-radius: 0; padding: 5px 12px; background: #2d2d2d; }
+  .seg button { border: none; border-radius: 0; padding: 5px 10px; background: #2d2d2d; }
   .seg button.on { background: #0e639c; }
   #menuBtn { flex: none; padding: 5px 10px; }
 
@@ -231,12 +231,13 @@
   #paneDiff .pdAct { flex: none; display: flex; flex-wrap: wrap; gap: 8px; }
   #paneDiff .pdAct button { flex: 1; min-width: 72px; padding: 8px 10px; }
 
-  @media (orientation: landscape) and (min-width: 900px) {
+  /* ≥700px landscape covers Tab S7-class devices (incl. denser DPI / zoom) */
+  @media (orientation: landscape) and (min-width: 700px) {
     body.tablet-dash > #dashStrip { display: flex; }
     /* Chat + Files side-by-side (tablet-friendly Cursor layout) */
     body.tablet-dash.dual-pane main {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(300px, 42%);
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 42%);
       gap: 0;
     }
     body.tablet-dash.dual-pane #chatView,
@@ -767,7 +768,7 @@ function showMenu(kind, items, max) {
 let changesCache = [];
 let changesActions = [];
 let lastDashChanged = -1;
-const isTabletLandscape = () => matchMedia('(orientation: landscape) and (min-width: 900px)').matches;
+const isTabletLandscape = () => matchMedia('(orientation: landscape) and (min-width: 700px)').matches;
 
 function showPaneFiles() {
   $('paneView').classList.remove('diffing');
@@ -855,7 +856,7 @@ function syncTabletDash() {
     send({ t: 'dash' });
   }, 3000);
 }
-matchMedia('(orientation: landscape) and (min-width: 900px)').addEventListener('change', syncTabletDash);
+matchMedia('(orientation: landscape) and (min-width: 700px)').addEventListener('change', syncTabletDash);
 
 function formatDiffHtml(text) {
   return esc(text || '').split('\n').map(line => {
