@@ -3,7 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import webpush from 'web-push';
-import { DATA_DIR, listDevices, updateDevice } from './auth.mjs';
+import { DATA_DIR, listDevices, updateDevice, saveState, readState } from './auth.mjs';
+import { telegramNotify } from './telegram.mjs';
 
 const POLL_MS = 3000;
 // Agent stop button flickers between steps; require it gone for this many polls before calling the run finished.
@@ -60,6 +61,14 @@ const wanted = () => streams.size > 0 || listDevices().some(d => d.push);
 // English is the default payload; event.zh holds Chinese title/body when the app language is zh.
 export async function deliver(event, onlyDevice = null) {
   const { zh, ...en } = event;
+  // Durable last-alert so a restarted relay / extension can show what was pending.
+  try {
+    saveState({
+      lastAlert: { ...en, at: Date.now() },
+      lastAlertZh: zh || null,
+    });
+  } catch { /* ignore */ }
+  void telegramNotify({ title: en.title, body: en.body, win: en.win });
   for (const d of listDevices()) {
     if (onlyDevice ? d.id !== onlyDevice : watching(d.id, event.win)) continue;
     const payload = JSON.stringify(d.lang === 'zh' && zh ? { ...en, ...zh } : en);
@@ -74,6 +83,17 @@ export async function deliver(event, onlyDevice = null) {
     }
   }
 }
+
+/** Snapshot for /api/status and the VS Code extension sidebar. */
+export function watcherStats() {
+  return {
+    watchingWindows: watchedCount,
+    listeners: streams.size,
+    lastAlert: readState().lastAlert || null,
+  };
+}
+
+let watchedCount = 0;
 
 /* ---------- window watcher ---------- */
 
@@ -126,6 +146,14 @@ export function startWatcher({ listWindows, openCdp, probe }) {
         if (s) check(win, w, s);
       } catch {}
     }));
+    watchedCount = watched.size;
+    try {
+      saveState({
+        watchedWindows: [...watched.keys()],
+        windowTitles: Object.fromEntries(wins.map(w => [w.id, w.title])),
+        watchedAt: Date.now(),
+      });
+    } catch { /* ignore */ }
   };
 
   let running = false;

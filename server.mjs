@@ -10,15 +10,18 @@ import qrcode from 'qrcode-terminal';
 import { workspaces, workspaceForTitle, fileSize, readFile, parseRef } from './files.mjs';
 import {
   DATA_DIR, encryptUrl, createPairing, pairingValid, consumePairing, listDevices, addDevice, findDevice, updateDevice,
-  removeDevice, totpConfig, verifyTotp, needsTotp, saveState, appBase,
+  removeDevice, totpConfig, verifyTotp, needsTotp, saveState, readState, appBase,
 } from './auth.mjs';
-import { pushPublicKey, openEventStream, closeEventStreams, addViewer, removeViewer, deliver, startWatcher } from './notify.mjs';
+import { pushPublicKey, openEventStream, closeEventStreams, addViewer, removeViewer, deliver, startWatcher, watcherStats } from './notify.mjs';
+import { startTelegramBot, telegramEnabled } from './telegram.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3939);
-const HOST = process.env.HOST || '0.0.0.0';
 const CDP_URL = (process.env.CDP_URL || 'http://127.0.0.1:9222').replace(/\/$/, '');
-const TUNNEL = process.argv.includes('--tunnel');
+const TUNNEL = process.argv.includes('--tunnel') || process.env.CR_NETWORK === 'tunnel';
+const LOCALHOST_ONLY = process.argv.includes('--localhost') || process.env.CR_NETWORK === 'localhost';
+const HOST = process.env.HOST || (LOCALHOST_ONLY ? '127.0.0.1' : TUNNEL ? '127.0.0.1' : '0.0.0.0');
+const NETWORK_MODE = TUNNEL ? 'tunnel' : (HOST === '127.0.0.1' || HOST === '::1' ? 'localhost' : 'lan');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const APP_DIR = path.join(__dirname, 'app');
 
@@ -1324,6 +1327,34 @@ async function handleApi(req, res, route) {
   if (req.method === 'POST' && !originAllowed(req)) return json(req, res, 403, { error: 'bad origin' });
   const device = deviceFor(req);
 
+  // Local status for the VS Code / Cursor extension (and health checks). No device token required.
+  if (route === '/api/status') {
+    let wins = [];
+    let cdpOk = false;
+    try {
+      wins = await listWindows();
+      cdpOk = true;
+    } catch { /* Cursor not on CDP yet */ }
+    const st = readState();
+    return json(req, res, 200, {
+      ok: true,
+      free: true,
+      version: '1.6.0',
+      networkMode: NETWORK_MODE,
+      host: HOST,
+      port: PORT,
+      tunnel: TUNNEL,
+      cdpOk,
+      windows: wins.length,
+      windowTitles: wins.map(w => w.title),
+      devices: listDevices().length,
+      appUrl: appBase() || '',
+      relayUrl: st.relayUrl || '',
+      telegram: telegramEnabled(),
+      watcher: watcherStats(),
+    });
+  }
+
   if (route === '/api/me') {
     return json(req, res, 200, { paired: Boolean(device), needTotp: needsTotp(device), totp: Boolean(totpConfig()) });
   }
@@ -1575,27 +1606,40 @@ function startTunnel() {
   process.on('SIGTERM', stop);
 }
 
-server.listen(PORT, TUNNEL ? '127.0.0.1' : HOST, async () => {
-  console.log(`Cursor Remote Lite started on port ${PORT}`);
+server.listen(PORT, HOST, async () => {
+  console.log(`Cursor Remote Lite started on port ${PORT} (mode=${NETWORK_MODE}, bind=${HOST})`);
   console.log(`${listDevices().length} device(s) paired. Add another: npm run pair`);
+  saveState({ networkMode: NETWORK_MODE, host: HOST, port: PORT, startedAt: Date.now() });
   startWatcher({
     listWindows,
     openCdp: async ws => { const c = new Cdp(ws); await c.connect(); return c; },
     probe: helpersCall('agentState()'),
   });
+  if (telegramEnabled()) {
+    startTelegramBot({
+      onPrompt: async ({ text }) => {
+        console.log(`[telegram] Prompt received (${text.length} chars) — open a phone session or use Chat to send; CDP send-from-Telegram is next.`);
+      },
+    });
+  }
   try {
     const wins = await listWindows();
     console.log(`Connected to Cursor, ${wins.length} window(s): ${wins.map(w => w.title).join(' | ')}`);
+    saveState({ lastWindows: wins.map(w => ({ id: w.id, title: w.title, kind: w.kind })) });
   } catch {
     console.log(`!! Cannot reach ${CDP_URL}. Restart Cursor with ./start-cursor.sh (Windows: start-cursor.ps1) so it uses --remote-debugging-port=9222`);
   }
   if (TUNNEL) {
     console.log('Opening Cloudflare public tunnel…');
     startTunnel();
+  } else if (NETWORK_MODE === 'localhost') {
+    console.log(`Localhost only: http://127.0.0.1:${PORT}/  (use Tailscale serve / SSH -L / your own proxy for remote access)`);
+    saveState({ relayUrl: `http://127.0.0.1:${PORT}/` });
+    offerFirstPairing();
   } else {
     const ips = Object.values(os.networkInterfaces()).flat()
       .filter(i => i && i.family === 'IPv4' && !i.internal).map(i => i.address);
-    for (const ip of ips) console.log(`  LAN URL: http://${ip}:${PORT}/`);
+    for (const ip of ips) console.log(`  LAN / Tailscale URL: http://${ip}:${PORT}/`);
     if (ips[0]) {
       saveState({ relayUrl: `http://${ips[0]}:${PORT}/` });
       offerFirstPairing();

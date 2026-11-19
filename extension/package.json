@@ -1,0 +1,95 @@
+{
+  "name": "cursor-remote-lite",
+  "displayName": "Cursor Remote Lite",
+  "description": "Free relay control for Cursor Remote Lite: start/stop the phone relay, see CDP status, open pairing.",
+  "version": "1.6.0",
+  "publisher": "edwardlthompson",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edwardlthompson/cursor-remote-lite.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cursorRemoteLite",
+          "title": "Cursor Remote",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "cursorRemoteLite": [
+        {
+          "id": "cursorRemoteLite.status",
+          "name": "Status"
+        }
+      ]
+    },
+    "commands": [
+      { "command": "cursorRemoteLite.start", "title": "Cursor Remote Lite: Start Relay" },
+      { "command": "cursorRemoteLite.stop", "title": "Cursor Remote Lite: Stop Relay" },
+      { "command": "cursorRemoteLite.restart", "title": "Cursor Remote Lite: Restart Relay" },
+      { "command": "cursorRemoteLite.pair", "title": "Cursor Remote Lite: Pair Phone (QR)" },
+      { "command": "cursorRemoteLite.openApp", "title": "Cursor Remote Lite: Open Phone App" },
+      { "command": "cursorRemoteLite.showLogs", "title": "Cursor Remote Lite: Show Logs" },
+      { "command": "cursorRemoteLite.adbPair", "title": "Cursor Remote Lite: ADB Install + Pair" }
+    ],
+    "configuration": {
+      "title": "Cursor Remote Lite",
+      "properties": {
+        "cursorRemoteLite.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Start the relay when Cursor finishes launching."
+        },
+        "cursorRemoteLite.networkMode": {
+          "type": "string",
+          "enum": ["tunnel", "lan", "localhost"],
+          "default": "tunnel",
+          "enumDescriptions": [
+            "Cloudflare quick tunnel (reachable from cellular)",
+            "Bind to all interfaces for LAN / Tailscale access",
+            "Bind to 127.0.0.1 only (use with your own reverse proxy or SSH tunnel)"
+          ],
+          "description": "How the phone reaches this computer."
+        },
+        "cursorRemoteLite.port": {
+          "type": "number",
+          "default": 3939,
+          "description": "Relay HTTP/WebSocket port."
+        },
+        "cursorRemoteLite.cdpUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:9222",
+          "description": "Cursor Chrome DevTools Protocol endpoint."
+        },
+        "cursorRemoteLite.repoPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the cursor-remote-lite checkout. Empty = parent of the extension folder when installed from this repo, or ~/cursor-remote-lite."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "package": "npm run compile && npx --yes @vscode/vsce package --no-dependencies -o ../packaging/out/cursor-remote-lite.vsix"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0"
+  }
+}

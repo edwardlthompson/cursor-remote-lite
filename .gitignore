@@ -1,4 +1,8 @@
 node_modules/
+extension/node_modules/
+extension/dist/
+*.vsix
+
 .DS_Store
 *.log
 android/.gradle/
