@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.9.4
+
+- **OpenShouter-friendly alerts**: Agent finished / waiting / test posts use a visible clock (`setWhen` + `setShowWhen(true)`), `CATEGORY_MESSAGE`, and a fresh notification id each time — not ongoing. The persistent listen FGS stays ongoing with no timestamp so it keeps the process alive without triggering a shout.
+
 ## 1.9.3
 
 - **Usage bar**: show Cursor’s included-usage % (from the desktop “Usage N%” chip) between History and the composer.

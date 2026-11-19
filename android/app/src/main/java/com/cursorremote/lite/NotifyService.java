@@ -25,6 +25,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
@@ -38,12 +40,14 @@ public class NotifyService extends Service {
     private static final String CH_DONE = "agent_done_v3";
     private static final String CH_WAIT = "agent_wait_v3";
     private static final String CH_LISTEN = "listen_v3";
-    private static final String GROUP_ALERTS = "agent_alerts";
     private static final int LISTEN_ID = 1;
 
     private volatile boolean running;
     private volatile HttpURLConnection conn;
     private Thread worker;
+    /** Fresh id per alert so OpenShouter sees a new timed post, not an ongoing FGS update. */
+    private final AtomicInteger alertSeq = new AtomicInteger(1000);
+    private final ConcurrentHashMap<String, Integer> lastAlertByWin = new ConcurrentHashMap<>();
 
     // Native text follows the phone's language; the web app has its own setting.
     static String tr(String zh, String en) {
@@ -84,12 +88,14 @@ public class NotifyService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         createChannels();
-        // Listening channel is quiet — keep the shade entry from demoting Agent alerts.
+        // Listening channel is quiet — keepalive only; no clock (OpenShouter ignores ongoing / untimed FGS).
         Notification.Builder listenBuilder = builder(CH_LISTEN)
                 .setContentTitle(tr("Cursor Remote 正在等待 Agent 的消息", "Cursor Remote is listening for the Agent"))
                 .setContentText(tr("Agent 完成或需要你确认时会提醒你", "You'll be alerted when the Agent finishes or needs your OK"))
                 .setContentIntent(openApp(null, null, 0))
                 .setOngoing(true)
+                .setWhen(0)
+                .setShowWhen(false)
                 .setCategory(Notification.CATEGORY_SERVICE);
         // Do not call Builder.setSilent — compileSdk 24 lacks it; quietness comes from CH_LISTEN.
         Notification listening = listenBuilder.build();
@@ -213,8 +219,15 @@ public class NotifyService extends Service {
         // test + done use the high-importance finished channel (sound / heads-up).
         boolean done = "done".equals(kind) || "test".equals(kind);
         String channel = done ? CH_DONE : CH_WAIT;
-        // One notification per window: a newer event replaces the older one.
-        int id = win.isEmpty() ? 2 : 3 + (win.hashCode() & 0x7fffffff) % 100000;
+        // Unique id + visible clock: OpenShouter shouts timed non-ongoing posts, not the FGS listen row.
+        long when = System.currentTimeMillis();
+        int id = alertSeq.incrementAndGet();
+        String winKey = win.isEmpty() ? "_" : win;
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        Integer prev = lastAlertByWin.put(winKey, id);
+        if (prev != null) {
+            try { nm.cancel(prev); } catch (Exception ignored) {}
+        }
         Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         Notification.Builder b = builder(channel)
                 .setContentTitle(e.optString("title", "Cursor Remote"))
@@ -222,13 +235,12 @@ public class NotifyService extends Service {
                 .setStyle(new Notification.BigTextStyle().bigText(e.optString("body", "")))
                 .setContentIntent(openApp(win, null, id))
                 .setAutoCancel(true)
-                .setCategory(Notification.CATEGORY_ALARM)
+                .setOngoing(false)
+                .setWhen(when)
+                .setShowWhen(true)
+                .setCategory(Notification.CATEGORY_MESSAGE)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
-                .setGroup(GROUP_ALERTS)
                 .setOnlyAlertOnce(false);
-        if (Build.VERSION.SDK_INT >= 26) {
-            b.setGroupAlertBehavior(Notification.GROUP_ALERT_ALL);
-        }
         if (Build.VERSION.SDK_INT < 26) {
             b.setPriority(Notification.PRIORITY_MAX);
             b.setDefaults(Notification.DEFAULT_ALL);
@@ -245,7 +257,7 @@ public class NotifyService extends Service {
             b.addAction(0, tr("继续", "Continue"), openApp(win, "continue", id + 400000));
             b.addAction(0, tr("回复", "Reply"), openApp(win, "reply", id + 500000));
         }
-        ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(id, b.build());
+        nm.notify(id, b.build());
     }
 
     private PendingIntent openApp(String win, String action, int requestCode) {
