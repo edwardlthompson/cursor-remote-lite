@@ -1340,7 +1340,7 @@ async function handleApi(req, res, route) {
     return json(req, res, 200, {
       ok: true,
       free: true,
-      version: '1.6.0',
+      version: '1.7.0',
       networkMode: NETWORK_MODE,
       host: HOST,
       port: PORT,
@@ -1623,10 +1623,11 @@ server.listen(PORT, HOST, async () => {
   });
   if (telegramEnabled()) {
     startTelegramBot({
-      onPrompt: async ({ text }) => {
+      listWindows: async () => (await listWindows()).map(w => ({ id: w.id, title: w.title })),
+      onPrompt: async ({ text, winId }) => {
         const st = readState();
-        const winId = st.lastAlert?.win || st.lastWindows?.[0]?.id || null;
-        const r = await headless.sendPrompt(winId, text);
+        const target = winId || st.lastAlert?.win || st.lastWindows?.[0]?.id || null;
+        const r = await headless.sendPrompt(target, text);
         console.log(`[telegram] Sent prompt to ${r.title} (${r.chars} chars)`);
         return `Sent to ${r.title}`;
       },

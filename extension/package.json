@@ -1,18 +1,38 @@
 {
   "name": "cursor-remote-lite",
   "displayName": "Cursor Remote Lite",
-  "description": "Free relay control for Cursor Remote Lite: start/stop the phone relay, see CDP status, open pairing.",
-  "version": "1.6.0",
+  "description": "Free relay for Cursor Remote Lite: start/stop the phone relay, CDP status, pairing, Setup panel. MIT — no license key.",
+  "version": "1.7.0",
   "publisher": "edwardlthompson",
   "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "homepage": "https://github.com/edwardlthompson/cursor-remote-lite#readme",
+  "bugs": {
+    "url": "https://github.com/edwardlthompson/cursor-remote-lite/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/edwardlthompson/cursor-remote-lite.git"
   },
+  "qna": "https://github.com/edwardlthompson/cursor-remote-lite/issues",
+  "keywords": [
+    "cursor",
+    "remote",
+    "agent",
+    "mobile",
+    "telegram",
+    "cdp"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -85,7 +105,8 @@
   "scripts": {
     "compile": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
-    "package": "npm run compile && npx --yes @vscode/vsce package --no-dependencies -o ../packaging/out/cursor-remote-lite.vsix"
+    "package": "npm run compile && npx --yes @vscode/vsce package --no-dependencies -o ../packaging/out/cursor-remote-lite.vsix",
+    "publish:ovsx": "npm run package && npx --yes ovsx publish ../packaging/out/cursor-remote-lite.vsix -p \"$OVSX_PAT\""
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

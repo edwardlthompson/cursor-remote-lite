@@ -68,7 +68,13 @@ export async function deliver(event, onlyDevice = null) {
       lastAlertZh: zh || null,
     });
   } catch { /* ignore */ }
-  void telegramNotify({ kind: en.kind, title: en.title, body: en.body, win: en.win });
+  void telegramNotify({
+    kind: en.kind,
+    title: en.title,
+    body: en.body,
+    win: en.win,
+    windowTitle: en.windowTitle || readState().windowTitles?.[en.win] || '',
+  });
   for (const d of listDevices()) {
     if (onlyDevice ? d.id !== onlyDevice : watching(d.id, event.win)) continue;
     const payload = JSON.stringify(d.lang === 'zh' && zh ? { ...en, ...zh } : en);
@@ -111,15 +117,21 @@ function check(win, w, s) {
   if (s.waiting !== w.waiting) { w.waiting = s.waiting; w.waitPolls = 0; w.told = first; }
   if (s.waiting && !w.told && ++w.waitPolls >= WAIT_POLLS) {
     w.told = true;
-    deliver({ kind: 'waiting', win: win.id, title: `Needs your OK · ${name}`, body: s.waitingText || 'The Agent is waiting for you',
-      zh: { title: `等你确认 · ${name}`, body: s.waitingText || 'Agent 在等你确认' } });
+    deliver({
+      kind: 'waiting', win: win.id, windowTitle: win.title,
+      title: `Needs your OK · ${name}`, body: s.waitingText || 'The Agent is waiting for you',
+      zh: { title: `等你确认 · ${name}`, body: s.waitingText || 'Agent 在等你确认' },
+    });
   }
 
   if (s.busy) { w.busy = true; w.idle = 0; return; }
   if (!w.busy || ++w.idle < IDLE_POLLS) return;
   w.busy = false;
-  if (!s.waiting) deliver({ kind: 'done', win: win.id, title: `Done · ${name}`, body: s.last || 'The Agent has stopped',
-    zh: { title: `已完成 · ${name}`, body: s.last || 'Agent 已停止' } });
+  if (!s.waiting) deliver({
+    kind: 'done', win: win.id, windowTitle: win.title,
+    title: `Done · ${name}`, body: s.last || 'The Agent has stopped',
+    zh: { title: `已完成 · ${name}`, body: s.last || 'Agent 已停止' },
+  });
 }
 
 // listWindows/openCdp/probe come from the relay so this module shares its CDP code.

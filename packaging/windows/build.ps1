@@ -16,6 +16,18 @@ $Stage = Join-Path $Out 'stage'
 Write-Host "== Building Cursor Remote Windows packages v$Version =="
 Write-Host "Repo: $Root"
 
+# Preserve companion APK across the clean of packaging/out.
+$apkStash = $null
+if ($ApkPath -and (Test-Path $ApkPath)) {
+  $apkStash = Join-Path $env:TEMP ("CursorRemote-stash-" + [Guid]::NewGuid().ToString('N') + '.apk')
+  Copy-Item -Force $ApkPath $apkStash
+  $ApkPath = $apkStash
+} elseif (Test-Path (Join-Path $Out 'CursorRemote.apk')) {
+  $apkStash = Join-Path $env:TEMP ("CursorRemote-stash-" + [Guid]::NewGuid().ToString('N') + '.apk')
+  Copy-Item -Force (Join-Path $Out 'CursorRemote.apk') $apkStash
+  $ApkPath = $apkStash
+}
+
 Remove-Item -Recurse -Force $Out -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $Payload, $Stage | Out-Null
 
@@ -70,7 +82,11 @@ if (-not $ApkPath) {
 }
 if ($ApkPath -and (Test-Path $ApkPath)) {
   Copy-Item -Force $ApkPath (Join-Path $Payload 'CursorRemote.apk')
-  Copy-Item -Force $ApkPath (Join-Path $Out 'CursorRemote.apk')
+  $outApk = Join-Path $Out 'CursorRemote.apk'
+  $srcFull = (Resolve-Path $ApkPath).Path
+  if (-not (Test-Path $outApk) -or (Resolve-Path $outApk).Path -ne $srcFull) {
+    Copy-Item -Force $ApkPath $outApk
+  }
   Write-Host "Bundled APK: $ApkPath"
 } else {
   Write-Host 'No APK bundled (pass -ApkPath). Drop CursorRemote.apk next to the EXE for auto ADB install.'

@@ -16,14 +16,14 @@ internal static class Program
         var target = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CursorRemoteLite");
         Directory.CreateDirectory(target);
         var stamp = Path.Combine(target, ".version");
-        const string want = "1.6.0";
+        const string want = "1.7.0";
         var needExtract = !File.Exists(Path.Combine(target, "win-run.mjs"))
             || !File.Exists(stamp)
             || File.ReadAllText(stamp).Trim() != want;
 
         if (needExtract)
         {
-            Console.WriteLine("Extracting Cursor Remote 1.6.0…");
+            Console.WriteLine("Extracting Cursor Remote 1.7.0…");
             using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip")
                 ?? throw new InvalidOperationException("Embedded payload.zip missing");
             var tmp = Path.Combine(Path.GetTempPath(), "CursorRemote-" + Guid.NewGuid().ToString("N") + ".zip");

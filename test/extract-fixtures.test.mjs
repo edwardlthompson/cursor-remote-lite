@@ -38,6 +38,8 @@ test('telegram and watcher persistence hooks exist', async () => {
   assert.match(tg, /startTelegramBot/);
   assert.match(tg, /callback_query|answerCallbackQuery/);
   assert.match(tg, /Approve/);
+  assert.match(tg, /createForumTopic|ensureWindowTopic/);
+  assert.match(tg, /\/sync/);
 });
 
 test('headless CDP bridge exposes approve/reject/stop/send', async () => {
