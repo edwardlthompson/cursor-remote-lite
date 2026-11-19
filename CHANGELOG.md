@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.9.5
+
+- **Test notifications actually post**: menu test posts a local timestamped alert immediately (no SSE race). `setNotify` no longer restarts the event stream when the config is unchanged. Relay SSE replays a recent `lastAlert` on connect so Agent-finished events survive brief reconnects.
+
 ## 1.9.4
 
 - **OpenShouter-friendly alerts**: Agent finished / waiting / test posts use a visible clock (`setWhen` + `setShowWhen(true)`), `CATEGORY_MESSAGE`, and a fresh notification id each time — not ongoing. The persistent listen FGS stays ongoing with no timestamp so it keeps the process alive without triggering a shout.

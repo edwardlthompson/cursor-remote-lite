@@ -41,6 +41,17 @@ export function openEventStream(req, res, deviceId) {
   res.write(': connected\n\n');
   const entry = { deviceId, res };
   streams.add(entry);
+  // Replay a recent alert missed while the Android listener was reconnecting (e.g. test right after setNotify).
+  try {
+    const st = readState();
+    const last = st.lastAlert;
+    if (last && Date.now() - (last.at || 0) < 120_000) {
+      const d = listDevices().find(x => x.id === deviceId);
+      const zh = st.lastAlertZh;
+      const payload = JSON.stringify(d?.lang === 'zh' && zh ? { ...last, ...zh } : last);
+      res.write(`data: ${payload}\n\n`);
+    }
+  } catch { /* ignore */ }
   // Cloudflare drops connections idle for 100 s.
   const ping = setInterval(() => res.write(': ping\n\n'), 25000);
   req.on('close', () => { clearInterval(ping); streams.delete(entry); });

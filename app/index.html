@@ -482,7 +482,7 @@
 <script src="i18n.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const UI_BUILD = 24; // bump when shell layout must force-refresh on phones
+const UI_BUILD = 25; // bump when shell layout must force-refresh on phones
 const PRIMARY = /^(run|allow|accept|approve|keep|continue|build|yes|运行|允许|接受|继续)/i;
 const store = {
   get: k => localStorage.getItem('cr-' + k),
@@ -1656,11 +1656,23 @@ $('sheet').addEventListener('click', async e => {
     if (nativeNotify() && !window.CursorRemoteApp.notifyEnabled()) {
       return status('Turn on notifications in the menu first', false);
     }
-    // Refresh SSE listener config before the test event.
-    if (nativeNotify()) window.CursorRemoteApp.setNotify(nativeConfig());
+    // Native: post locally first (SSE used to miss tests because setNotify restarted the listener).
+    if (nativeNotify() && window.CursorRemoteApp.postTestAlert) {
+      window.CursorRemoteApp.postTestAlert();
+      status('Test notification posted — check the shade / OpenShouter');
+    }
+    // Keep the existing SSE stream; only refresh token if missing. Then also exercise the relay path.
+    if (nativeNotify() && !window.CursorRemoteApp.notifyEnabled()) {
+      window.CursorRemoteApp.setNotify(nativeConfig());
+    }
     const r = await post('/api/push/test').catch(() => null);
-    if (r?.ok) status('Test notification sent; it should arrive within a few seconds');
-    else status('Send failed — check that notifications are on and the phone can reach the relay', false);
+    if (r?.ok) {
+      if (!nativeNotify() || !window.CursorRemoteApp.postTestAlert) {
+        status('Test notification sent; it should arrive within a few seconds');
+      }
+    } else if (!(nativeNotify() && window.CursorRemoteApp.postTestAlert)) {
+      status('Send failed — check that notifications are on and the phone can reach the relay', false);
+    }
   }
   else if (act === 'notifySettings') {
     closeSheet();

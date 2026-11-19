@@ -114,6 +114,7 @@ public class MainActivity extends Activity {
             if (state != null) web.restoreState(state);
             else load();
         }
+        maybePostTestFromIntent(getIntent());
         // Migrate silent-stuck channels once after APK upgrade.
         if (!prefs.getBoolean("channelsV3", false)) {
             NotifyService.resetChannels(this);
@@ -231,6 +232,7 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (openPairLink(intent)) return;
+        maybePostTestFromIntent(intent);
         String win = intent.getStringExtra("win");
         String action = intent.getStringExtra("notifAction");
         if (win != null) web.evaluateJavascript("window.openWin && openWin(" + JSONObject.quote(win) + ")", null);
@@ -238,6 +240,14 @@ public class MainActivity extends Activity {
             web.evaluateJavascript(
                 "window.handleNotifAction && handleNotifAction(" + JSONObject.quote(action) + "," + JSONObject.quote(win == null ? "" : win) + ")",
                 null);
+        }
+    }
+
+    /** adb: am start -n com.cursorremote.lite/.MainActivity --ez postTest true */
+    private void maybePostTestFromIntent(Intent intent) {
+        if (intent != null && intent.getBooleanExtra("postTest", false)) {
+            NotifyService.postTestAlert(this);
+            Toast.makeText(this, NotifyService.tr("已发送测试通知", "Test notification posted"), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -266,6 +276,7 @@ public class MainActivity extends Activity {
     }
 
     private void enableNotify(String config) {
+        String prev = prefs.getString(NotifyService.PREF, null);
         prefs.edit().putString(NotifyService.PREF, config).apply();
         requestNotifyPermission();
         // Recreate alert channels so OEMs can't keep an old channel locked on Silent.
@@ -281,7 +292,8 @@ public class MainActivity extends Activity {
                 startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName())));
             } catch (Exception ignored) {}
         }
-        NotifyService.start(this);
+        // Same config → keep the existing SSE stream. Restarting on every menu/test drops in-flight alerts.
+        NotifyService.start(this, prev == null || !prev.equals(config));
         if (!notificationsAllowed()) {
             Toast.makeText(this, NotifyService.tr(
                     "请允许通知权限，否则收不到 Agent 完成提醒",
@@ -444,12 +456,18 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 NotifyService.resetChannels(MainActivity.this);
                 prefs.edit().putBoolean("channelsV3", true).apply();
-                NotifyService.start(MainActivity.this);
+                NotifyService.start(MainActivity.this, false);
                 Toast.makeText(MainActivity.this, NotifyService.tr(
                         "已重建通知渠道，请再发一条测试通知",
                         "Notification channels reset — send a test notification"), Toast.LENGTH_LONG).show();
                 openAppNotificationSettings();
             });
+        }
+
+        /** Posts a timestamped alert locally so OpenShouter can shout without waiting on SSE. */
+        @JavascriptInterface
+        public void postTestAlert() {
+            runOnUiThread(() -> NotifyService.postTestAlert(MainActivity.this));
         }
 
         // A notification tapped while the app was closed: the page asks for its window once it has connected.

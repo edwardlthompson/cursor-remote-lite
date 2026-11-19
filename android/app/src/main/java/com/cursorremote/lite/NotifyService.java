@@ -15,6 +15,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
 import android.util.Base64;
+import android.util.Log;
 
 import org.json.JSONObject;
 
@@ -36,6 +37,7 @@ import javax.crypto.spec.SecretKeySpec;
 // Android WebView has no Web Push, and Google's push service is missing on Huawei phones, so the app listens itself.
 public class NotifyService extends Service {
     static final String PREF = "notify";
+    private static final String TAG = "CursorRemoteNotify";
     // Bump ids whenever OEMs lock an old channel to Silent — apps cannot raise locked channel importance.
     private static final String CH_DONE = "agent_done_v3";
     private static final String CH_WAIT = "agent_wait_v3";
@@ -46,8 +48,8 @@ public class NotifyService extends Service {
     private volatile HttpURLConnection conn;
     private Thread worker;
     /** Fresh id per alert so OpenShouter sees a new timed post, not an ongoing FGS update. */
-    private final AtomicInteger alertSeq = new AtomicInteger(1000);
-    private final ConcurrentHashMap<String, Integer> lastAlertByWin = new ConcurrentHashMap<>();
+    private static final AtomicInteger alertSeq = new AtomicInteger(1000);
+    private static final ConcurrentHashMap<String, Integer> lastAlertByWin = new ConcurrentHashMap<>();
 
     // Native text follows the phone's language; the web app has its own setting.
     static String tr(String zh, String en) {
@@ -59,10 +61,72 @@ public class NotifyService extends Service {
     }
 
     static void start(Context c) {
+        start(c, true);
+    }
+
+    /** @param restartListener false keeps an existing SSE stream (avoid dropping in-flight test/done alerts). */
+    static void start(Context c, boolean restartListener) {
         // Always start: even without push config this keeps the process (and WebView socket) alive.
-        Intent i = new Intent(c, NotifyService.class);
+        Intent i = new Intent(c, NotifyService.class).putExtra("restart", restartListener);
         if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i);
         else c.startService(i);
+    }
+
+    /** Immediate shade alert (and OpenShouter shout) — does not wait for the relay SSE round-trip. */
+    static void postTestAlert(Context c) {
+        postAlert(c, "Cursor Remote",
+                tr("测试通知：能看到这条，说明通知已经通了 ✅",
+                        "Test notification: if you see this, notifications are working ✅"),
+                "test", "");
+    }
+
+    /** Post a timed, non-ongoing Agent alert that OpenShouter will treat like a messaging notification. */
+    static void postAlert(Context c, String title, String body, String kind, String win) {
+        createChannelsStatic(c);
+        boolean done = "done".equals(kind) || "test".equals(kind);
+        String channel = done ? CH_DONE : CH_WAIT;
+        long when = System.currentTimeMillis();
+        int id = alertSeq.incrementAndGet();
+        String winKey = (win == null || win.isEmpty()) ? "_" : win;
+        NotificationManager nm = (NotificationManager) c.getSystemService(NOTIFICATION_SERVICE);
+        Integer prev = lastAlertByWin.put(winKey, id);
+        if (prev != null) {
+            try { nm.cancel(prev); } catch (Exception ignored) {}
+        }
+        Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        Notification.Builder b = (Build.VERSION.SDK_INT >= 26
+                ? new Notification.Builder(c, channel)
+                : new Notification.Builder(c))
+                .setSmallIcon(R.drawable.ic_notify)
+                .setContentTitle(title != null && !title.isEmpty() ? title : "Cursor Remote")
+                .setContentText(body != null ? body : "")
+                .setStyle(new Notification.BigTextStyle().bigText(body != null ? body : ""))
+                .setContentIntent(openAppPending(c, win, null, id))
+                .setAutoCancel(true)
+                .setOngoing(false)
+                .setWhen(when)
+                .setShowWhen(true)
+                .setCategory(Notification.CATEGORY_MESSAGE)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setOnlyAlertOnce(false);
+        if (Build.VERSION.SDK_INT < 26) {
+            b.setPriority(Notification.PRIORITY_MAX);
+            b.setDefaults(Notification.DEFAULT_ALL);
+            b.setSound(sound);
+            b.setVibrate(new long[]{0, 160, 80, 160});
+        } else {
+            b.setSound(sound);
+        }
+        if ("waiting".equals(kind)) {
+            b.addAction(0, tr("批准", "Approve"), openAppPending(c, win, "approve", id + 100000));
+            b.addAction(0, tr("跳过", "Skip"), openAppPending(c, win, "skip", id + 200000));
+            b.addAction(0, tr("停止", "Stop"), openAppPending(c, win, "stop", id + 300000));
+        } else if (done) {
+            b.addAction(0, tr("继续", "Continue"), openAppPending(c, win, "continue", id + 400000));
+            b.addAction(0, tr("回复", "Reply"), openAppPending(c, win, "reply", id + 500000));
+        }
+        nm.notify(id, b.build());
+        Log.i(TAG, "posted alert kind=" + kind + " id=" + id + " channel=" + channel + " when=" + when);
     }
 
     /** Delete legacy/silent-stuck channels and recreate loud alert channels. */
@@ -92,7 +156,7 @@ public class NotifyService extends Service {
         Notification.Builder listenBuilder = builder(CH_LISTEN)
                 .setContentTitle(tr("Cursor Remote 正在等待 Agent 的消息", "Cursor Remote is listening for the Agent"))
                 .setContentText(tr("Agent 完成或需要你确认时会提醒你", "You'll be alerted when the Agent finishes or needs your OK"))
-                .setContentIntent(openApp(null, null, 0))
+                .setContentIntent(openAppPending(this, null, null, 0))
                 .setOngoing(true)
                 .setWhen(0)
                 .setShowWhen(false)
@@ -107,11 +171,14 @@ public class NotifyService extends Service {
             stopWorker();
             return START_STICKY;
         }
-        // Always (re)start the listener so a refreshed token / Pages URL from setNotify takes effect.
-        stopWorker();
-        running = true;
-        worker = new Thread(this::loop, "cursor-remote-notify");
-        worker.start();
+        boolean restart = intent == null || intent.getBooleanExtra("restart", true);
+        // Reuse the open SSE stream unless config changed — menu/test setNotify used to kill every alert mid-flight.
+        if (restart || worker == null || !running) {
+            stopWorker();
+            running = true;
+            worker = new Thread(this::loop, "cursor-remote-notify");
+            worker.start();
+        }
         return START_STICKY;
     }
 
@@ -193,6 +260,7 @@ public class NotifyService extends Service {
     }
 
     private void listen(String relay, String token) throws Exception {
+        Log.i(TAG, "SSE connecting " + relay + "/api/events");
         HttpURLConnection c = (HttpURLConnection) new URL(relay + "/api/events").openConnection();
         conn = c;
         c.setConnectTimeout(15000);
@@ -201,70 +269,42 @@ public class NotifyService extends Service {
         c.setRequestProperty("Authorization", "Bearer " + token);
         c.setRequestProperty("Accept", "text/event-stream");
         try {
-            if (c.getResponseCode() == 401) throw new Unauthorized();
-            if (c.getResponseCode() != 200) throw new Exception("HTTP " + c.getResponseCode());
+            int code = c.getResponseCode();
+            if (code == 401) throw new Unauthorized();
+            if (code != 200) throw new Exception("HTTP " + code);
+            Log.i(TAG, "SSE connected");
             BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8));
             for (String line; running && (line = r.readLine()) != null; ) {
-                if (line.startsWith("data:")) show(new JSONObject(line.substring(5).trim()));
+                if (line.startsWith("data:")) {
+                    String raw = line.substring(5).trim();
+                    if (raw.isEmpty()) continue;
+                    try {
+                        show(new JSONObject(raw));
+                    } catch (Exception e) {
+                        Log.w(TAG, "bad SSE payload: " + e.getMessage());
+                    }
+                }
             }
         } finally {
+            Log.i(TAG, "SSE disconnected");
             c.disconnect();
             conn = null;
         }
     }
 
     private void show(JSONObject e) {
-        String win = e.optString("win", "");
-        String kind = e.optString("kind", "");
-        // test + done use the high-importance finished channel (sound / heads-up).
-        boolean done = "done".equals(kind) || "test".equals(kind);
-        String channel = done ? CH_DONE : CH_WAIT;
-        // Unique id + visible clock: OpenShouter shouts timed non-ongoing posts, not the FGS listen row.
-        long when = System.currentTimeMillis();
-        int id = alertSeq.incrementAndGet();
-        String winKey = win.isEmpty() ? "_" : win;
-        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        Integer prev = lastAlertByWin.put(winKey, id);
-        if (prev != null) {
-            try { nm.cancel(prev); } catch (Exception ignored) {}
-        }
-        Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        Notification.Builder b = builder(channel)
-                .setContentTitle(e.optString("title", "Cursor Remote"))
-                .setContentText(e.optString("body", ""))
-                .setStyle(new Notification.BigTextStyle().bigText(e.optString("body", "")))
-                .setContentIntent(openApp(win, null, id))
-                .setAutoCancel(true)
-                .setOngoing(false)
-                .setWhen(when)
-                .setShowWhen(true)
-                .setCategory(Notification.CATEGORY_MESSAGE)
-                .setVisibility(Notification.VISIBILITY_PUBLIC)
-                .setOnlyAlertOnce(false);
-        if (Build.VERSION.SDK_INT < 26) {
-            b.setPriority(Notification.PRIORITY_MAX);
-            b.setDefaults(Notification.DEFAULT_ALL);
-            b.setSound(sound);
-            b.setVibrate(new long[]{0, 160, 80, 160});
-        } else {
-            b.setSound(sound);
-        }
-        if ("waiting".equals(kind)) {
-            b.addAction(0, tr("批准", "Approve"), openApp(win, "approve", id + 100000));
-            b.addAction(0, tr("跳过", "Skip"), openApp(win, "skip", id + 200000));
-            b.addAction(0, tr("停止", "Stop"), openApp(win, "stop", id + 300000));
-        } else if (done) {
-            b.addAction(0, tr("继续", "Continue"), openApp(win, "continue", id + 400000));
-            b.addAction(0, tr("回复", "Reply"), openApp(win, "reply", id + 500000));
-        }
-        nm.notify(id, b.build());
+        postAlert(this,
+                e.optString("title", "Cursor Remote"),
+                e.optString("body", ""),
+                e.optString("kind", ""),
+                e.optString("win", ""));
     }
 
-    private PendingIntent openApp(String win, String action, int requestCode) {
-        Intent i = new Intent(this, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    private static PendingIntent openAppPending(Context c, String win, String action, int requestCode) {
+        Intent i = new Intent(c, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (win != null && !win.isEmpty()) i.putExtra("win", win);
         if (action != null && !action.isEmpty()) i.putExtra("notifAction", action);
-        return PendingIntent.getActivity(this, requestCode, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        return PendingIntent.getActivity(c, requestCode, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private Notification.Builder builder(String channel) {
