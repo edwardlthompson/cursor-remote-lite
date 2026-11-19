@@ -43,7 +43,7 @@ A tiny relay on your computer drives the real Cursor running there, and your pho
 - Read the Agent conversation like a chat app; messages sent while it's busy are queued automatically.
 - **Heads-up notifications with sound** when a turn finishes or when Run/Allow is waiting — Approve / Skip / Stop / Continue / Reply from the notification.
 - Review **git diffs**, Keep / Undo per file; paste phone clipboard into Cursor or pull a selection / code block back.
-- **Tablet landscape dashboard**: status strip for every window (idle / running / waiting) plus a changed-files side panel.
+- **Tablet landscape dashboard**: **Chat | Files | Screen** — in landscape, chat and the Files pane sit side-by-side (diffs inline); status strip for every window (idle / running / waiting).
 - Every window works: local, SSH remote, Agents; switch mode, model and reasoning effort anytime.
 - Optional **Telegram** (forum topics per window) and a free **Cursor extension** for setup/status.
 - Your code and chats stay on your computer; the phone reaches them over a Cloudflare tunnel (HTTPS), LAN, or localhost. Works on Android and iPhone, including networks in mainland China.
@@ -108,7 +108,7 @@ So this project provides both: an Android app that installs without Google servi
 - **Diff review**: tap a changed file for a unified git diff, then Keep / Undo / prev-next.
 - **Clipboard bridge**: paste phone clipboard → Cursor composer; pull selection or last code block → phone.
 - **Multi-device lock**: phone + tablet won’t double-Approve; banner + **Take control** (90s idle TTL).
-- **Tablet landscape dashboard** (≥900px landscape): window status strip (idle / running / waiting) + changed-files side panel.
+- **Tablet landscape dual pane** (≥900px): **Files** tab between Chat and Screen; chat + changed-files/diff side-by-side, plus window status strip.
 - **Windows tray**: `CursorRemote.exe` / MSI runs in the system tray with Start with Windows, keep-awake, ADB pair, Quit (stops relay).
 - **Telegram** (optional): forum topic per Cursor window (`/sync`); waiting/done inline actions. See [docs/TELEGRAM.md](docs/TELEGRAM.md).
 - **Cursor / VS Code extension**: setup panel, status, network modes (tunnel / lan / localhost). See [docs/EXTENSION.md](docs/EXTENSION.md).
@@ -175,7 +175,7 @@ If you can't scan it, send the link shown below the QR code to your phone and op
 | Platform | Download |
 |---|---|
 | **Windows** | [CursorRemote.exe](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.exe) / [CursorRemote.msi](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.msi) — **system tray**, Start with Windows, keep-awake, ADB auto-pair |
-| **Linux** | [CursorRemote-linux-x64.deb](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-linux-x64.deb) or [tar.gz](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-1.8.1-linux-x64.tar.gz) → `cursor-remote` |
+| **Linux** | [CursorRemote-linux-x64.deb](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-linux-x64.deb) or [tar.gz](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-1.8.2-linux-x64.tar.gz) → `cursor-remote` |
 | **Android** | [CursorRemote.apk](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.apk) — no Google services required (Huawei OK). HarmonyOS NEXT needs Zhuoyitong before APKs. |
 | **iPhone** | Open the Pages URL in Safari → Share → **Add to Home Screen** |
 | **Cursor extension** | [cursor-remote-lite.vsix](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/cursor-remote-lite.vsix) |

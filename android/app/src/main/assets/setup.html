@@ -29,6 +29,7 @@
   <input id="url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="Paste pairing link or app address">
   <div id="msg" class="err"></div>
   <button id="save">Open</button>
+  <button id="cancel" class="ghost" hidden>Cancel</button>
   <div class="hint">To change the address later: "⋯ → Change app address" at the top right of the app.</div>
 </div>
 <script>
@@ -38,6 +39,8 @@ const T = zh ? s => ({
   "The address must use https": '地址必须是 https',
   'Enter an address': '请填写地址',
   'That address is not valid': '地址格式不对',
+  'Cancel': '取消',
+  'Open': '打开',
 }[s] || s) : s => s;
 if (zh) {
   document.documentElement.lang = 'zh-CN';
@@ -45,7 +48,8 @@ if (zh) {
     + '<button id="retry">重试</button><button id="change" class="ghost">更换 App 地址</button>';
   $('setup').querySelector('p').innerHTML = '在电脑上运行 <code>npm run pair</code>，把显示的<b>配对链接</b>粘贴到这里（也可以只填 App 地址，之后再配对）。只需一次。';
   $('url').placeholder = '粘贴配对链接 或 App 地址';
-  $('save').textContent = '打开';
+  $('save').textContent = T('Open');
+  $('cancel').textContent = T('Cancel');
   $('setup').querySelector('.hint').textContent = '以后要换地址：App 右上角「⋯ → 更换 App 地址」。';
 }
 const q = new URLSearchParams(location.search);
@@ -53,6 +57,7 @@ const app = window.CursorRemoteApp;
 const current = app ? app.getUrl() : '';
 if (q.has('offline') && current) $('offline').hidden = false;
 else $('setup').hidden = false;
+if ((q.has('change') || q.has('offline')) && current) $('cancel').hidden = false;
 $('url').value = current.replace(/^https:\/\//, '');
 
 function normalize(s) {
@@ -76,7 +81,11 @@ $('save').onclick = () => {
 };
 $('url').onkeydown = e => { if (e.key === 'Enter') $('save').click(); };
 $('retry').onclick = () => app.retry();
-$('change').onclick = () => { $('offline').hidden = true; $('setup').hidden = false; };
+$('change').onclick = () => { $('offline').hidden = true; $('setup').hidden = false; if (current) $('cancel').hidden = false; };
+$('cancel').onclick = () => {
+  if (app.goHome) app.goHome();
+  else if (app.retry) app.retry();
+};
 </script>
 </body>
 </html>

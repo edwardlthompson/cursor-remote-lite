@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.2
+
+- **Files tab + dual pane**: new **Files** button between Chat and Screen. Phone: full-height pane in the same layout as chat (list + empty state; diffs inline). Tablet landscape (≥900px): tapping **Files** shows chat and the Files pane side-by-side (chat left, changed files / diff right); window status strip unchanged.
+- **Android Back**: system Back closes the ⋯ menu / sheets / file viewer (and returns from Change address) instead of killing the app; main UI sends the task to the background.
+- **In-app updates**: Check for app update queries GitHub Releases, downloads `CursorRemote.apk`, and opens the installer; runs automatically once each time the app opens.
+
 ## 1.8.1
 
 - **Clipboard bridge**: paste phone clipboard into Cursor’s composer; pull selection / last code block back to the phone (composer buttons + menu).

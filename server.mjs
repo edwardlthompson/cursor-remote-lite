@@ -1467,7 +1467,7 @@ async function handleApi(req, res, route) {
     return json(req, res, 200, {
       ok: true,
       free: true,
-      version: '1.8.1',
+      version: '1.8.2',
       networkMode: NETWORK_MODE,
       host: HOST,
       port: PORT,

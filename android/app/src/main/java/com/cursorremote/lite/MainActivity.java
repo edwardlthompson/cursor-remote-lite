@@ -120,6 +120,12 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         web.onResume();
+        // Resume a download that waited for “install unknown apps” permission.
+        String pending = prefs.getString("pendingUpdateUrl", null);
+        if (pending != null && canInstallPackages()) {
+            prefs.edit().remove("pendingUpdateUrl").apply();
+            downloadUpdate(pending);
+        }
     }
 
     @Override
@@ -128,7 +134,22 @@ public class MainActivity extends Activity {
         super.onDestroy();
     }
 
+    private boolean canInstallPackages() {
+        return Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls();
+    }
+
     private void downloadUpdate(String url) {
+        if (!canInstallPackages()) {
+            prefs.edit().putString("pendingUpdateUrl", url).apply();
+            try {
+                startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + getPackageName())));
+            } catch (Exception ignored) {}
+            Toast.makeText(this, NotifyService.tr(
+                    "请允许安装未知应用，返回后会继续下载更新",
+                    "Allow installing unknown apps; the download continues when you return"), Toast.LENGTH_LONG).show();
+            return;
+        }
         DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
         long previous = prefs.getLong("updateId", -1);
         if (previous != -1) dm.remove(previous);
@@ -157,6 +178,36 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             Toast.makeText(this, NotifyService.tr("无法打开安装界面，请到浏览器下载安装", "Cannot open the installer; download it in a browser"), Toast.LENGTH_LONG).show();
         }
+    }
+
+    private boolean onSetupPage() {
+        String url = web.getUrl();
+        return url != null && (url.startsWith(SETUP) || url.contains("android_asset/setup.html"));
+    }
+
+    private void returnToApp() {
+        String url = appUrl();
+        if (url.isEmpty()) return;
+        web.clearHistory();
+        web.loadUrl(url);
+    }
+
+    private void handleNativeBack() {
+        // Change-address / offline setup: return to the paired app instead of exiting.
+        if (onSetupPage() && !appUrl().isEmpty()) {
+            returnToApp();
+            return;
+        }
+        if (web.canGoBack()) {
+            web.goBack();
+            return;
+        }
+        // Main UI: send to background rather than finishing (killing) the activity.
+        if (!appUrl().isEmpty()) {
+            moveTaskToBack(true);
+            return;
+        }
+        super.onBackPressed();
     }
 
     @Override
@@ -254,8 +305,13 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (web.canGoBack()) web.goBack();
-        else super.onBackPressed();
+        // Let the page close sheets / viewers first so Back from the menu does not exit.
+        web.evaluateJavascript(
+                "(function(){try{return !!(window.handleAppBack&&window.handleAppBack());}catch(e){return false;}})()",
+                value -> {
+                    if ("true".equals(value)) return;
+                    runOnUiThread(this::handleNativeBack);
+                });
     }
 
     private class Bridge {
@@ -275,6 +331,11 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void retry() {
             runOnUiThread(MainActivity.this::load);
+        }
+
+        @JavascriptInterface
+        public void goHome() {
+            runOnUiThread(MainActivity.this::returnToApp);
         }
 
         @JavascriptInterface

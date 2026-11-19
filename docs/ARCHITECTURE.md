@@ -49,4 +49,4 @@ Windows EXE/MSI, Linux `.deb`/tar.gz, Android APK, Cursor/VS Code `.vsix` — se
 ## Roadmap
 
 1.8.0 implements [ROADMAP-1.8.md](ROADMAP-1.8.md) (quick prompts + notification actions, diff review, multi-device lock, Windows tray/autostart).  
-1.8.1 adds clipboard bridge (phone ↔ Cursor) and a tablet landscape dashboard (window status strip + changed-files side panel).
+1.8.1 adds clipboard bridge (phone ↔ Cursor) and a tablet landscape dashboard (window status strip + changed-files side panel). 1.8.2 adds an explicit **Files** tab between Chat and Screen; on landscape tablets chat and Files share the main area side-by-side (diffs render in the pane).
