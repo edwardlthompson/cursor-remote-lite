@@ -114,6 +114,11 @@ public class MainActivity extends Activity {
             if (state != null) web.restoreState(state);
             else load();
         }
+        // Migrate silent-stuck channels once after APK upgrade.
+        if (!prefs.getBoolean("channelsV3", false)) {
+            NotifyService.resetChannels(this);
+            prefs.edit().putBoolean("channelsV3", true).apply();
+        }
         // Always keep a foreground service so the process (and WebSocket) survive Home / app switch.
         NotifyService.start(this);
         // Android 13+: if the user already turned notifications on, re-prompt when permission is missing.
@@ -263,6 +268,11 @@ public class MainActivity extends Activity {
     private void enableNotify(String config) {
         prefs.edit().putString(NotifyService.PREF, config).apply();
         requestNotifyPermission();
+        // Recreate alert channels so OEMs can't keep an old channel locked on Silent.
+        if (!prefs.getBoolean("channelsV3", false)) {
+            NotifyService.resetChannels(this);
+            prefs.edit().putBoolean("channelsV3", true).apply();
+        }
         // Without this, stock Android may stop the listener after the phone has been idle for a while.
         PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
         if (!pm.isIgnoringBatteryOptimizations(getPackageName()) && !prefs.getBoolean("askedBattery", false)) {
@@ -427,6 +437,19 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void openNotificationSettings() {
             runOnUiThread(MainActivity.this::openAppNotificationSettings);
+        }
+
+        @JavascriptInterface
+        public void resetNotificationChannels() {
+            runOnUiThread(() -> {
+                NotifyService.resetChannels(MainActivity.this);
+                prefs.edit().putBoolean("channelsV3", true).apply();
+                NotifyService.start(MainActivity.this);
+                Toast.makeText(MainActivity.this, NotifyService.tr(
+                        "已重建通知渠道，请再发一条测试通知",
+                        "Notification channels reset — send a test notification"), Toast.LENGTH_LONG).show();
+                openAppNotificationSettings();
+            });
         }
 
         // A notification tapped while the app was closed: the page asks for its window once it has connected.

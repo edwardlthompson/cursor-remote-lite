@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.9.3
+
+- **Usage bar**: show Cursor’s included-usage % (from the desktop “Usage N%” chip) between History and the composer.
+- **Silent notifications**: recreate alert channels as `*_v3` (OEMs lock Silent on old channel ids); FGS listen uses a separate quiet channel; alerts force `setSilent(false)` + sound; menu → Fix silent notifications.
+
 ## 1.9.2
 
 - **Android notifications**: detect/request `POST_NOTIFICATIONS` (was denied → app importance NONE, silent alerts); restart SSE listener on config refresh; test alerts use the high-importance channel; menu links to system notification settings.

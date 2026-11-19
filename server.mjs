@@ -741,6 +741,17 @@ function pageHelpers() {
     }));
   };
 
+  // Cursor's composer status chip: aria-label "Usage 94%" (included quota).
+  const usagePct = () => {
+    const btn = [...document.querySelectorAll('button,[role=button]')].find(e => {
+      const t = (e.getAttribute('aria-label') || e.innerText || '').trim();
+      return /^Usage\s+\d{1,3}%/i.test(t);
+    });
+    if (!btn) return null;
+    const m = /Usage\s+(\d{1,3})%/i.exec(btn.getAttribute('aria-label') || btn.innerText || '');
+    return m ? Number(m[1]) : null;
+  };
+
   // Selection in the editor, else the last visible code block, else last assistant text snippet.
   const clipboardPull = () => {
     const sel = (getSelection()?.toString() || '').trim();
@@ -760,7 +771,7 @@ function pageHelpers() {
 
   return { extract, locate, panelRect, control, menuItems, menuItem, quickOpenRows, agentState, queueTarget, stopTarget, focusQueueEdit,
     menuOpen, maxToggle, modelTarget, modelParams, paramTarget, subTarget, activeChatTab, tabTarget, hasComposer, filesState, fileTarget, questionTarget,
-    editorTabs, editorTabTarget, ensureAgentSidebar, agentSidebarVisible, clipboardPull };
+    editorTabs, editorTabTarget, ensureAgentSidebar, agentSidebarVisible, clipboardPull, usagePct };
 }
 
 const helpersCall = call => `(${pageHelpers.toString()})().${call}`;
@@ -791,6 +802,7 @@ class Session {
     this.mode = 'chat';
     this.lastChat = '';
     this.lastPanel = '';
+    this.lastUsage = null;
     this.idleTimer = setInterval(() => this.pollIfIdle(), 2000);
   }
 
@@ -811,6 +823,14 @@ class Session {
     }
   }
 
+  async pollUsage() {
+    if (!this.cdp) return;
+    const pct = await this.cdp.evaluate(helpersCall('usagePct()')).catch(() => null);
+    if (pct == null || pct === this.lastUsage) return;
+    this.lastUsage = pct;
+    this.emit({ t: 'usage', pct });
+  }
+
   async pollChat() {
     if (!this.cdp || this.polling) return;
     this.polling = true;
@@ -821,6 +841,7 @@ class Session {
         this.lastChat = json;
         this.emit({ t: 'chat', chat });
       }
+      await this.pollUsage();
     } finally {
       this.polling = false;
     }

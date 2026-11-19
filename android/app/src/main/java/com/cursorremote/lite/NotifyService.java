@@ -34,10 +34,11 @@ import javax.crypto.spec.SecretKeySpec;
 // Android WebView has no Web Push, and Google's push service is missing on Huawei phones, so the app listens itself.
 public class NotifyService extends Service {
     static final String PREF = "notify";
-    // New channel ids so sound/importance take effect (Android freezes channel settings after first create).
-    private static final String CH_DONE = "agent_done_v2";
-    private static final String CH_WAIT = "agent_wait_v2";
-    private static final String CH_LISTEN = "listen";
+    // Bump ids whenever OEMs lock an old channel to Silent — apps cannot raise locked channel importance.
+    private static final String CH_DONE = "agent_done_v3";
+    private static final String CH_WAIT = "agent_wait_v3";
+    private static final String CH_LISTEN = "listen_v3";
+    private static final String GROUP_ALERTS = "agent_alerts";
     private static final int LISTEN_ID = 1;
 
     private volatile boolean running;
@@ -60,6 +61,22 @@ public class NotifyService extends Service {
         else c.startService(i);
     }
 
+    /** Delete legacy/silent-stuck channels and recreate loud alert channels. */
+    static void resetChannels(Context c) {
+        if (Build.VERSION.SDK_INT < 26) return;
+        NotificationManager nm = (NotificationManager) c.getSystemService(NOTIFICATION_SERVICE);
+        String[] legacy = {
+                "events", "listen", "listen_v2", "listen_v3",
+                "agent_done", "agent_done_v2", "agent_done_v3",
+                "agent_wait", "agent_wait_v2", "agent_wait_v3",
+        };
+        for (String id : legacy) {
+            try { nm.deleteNotificationChannel(id); } catch (Exception ignored) {}
+        }
+        // Recreate immediately so the next notify uses fresh HIGH channels.
+        createChannelsStatic(c);
+    }
+
     private static SharedPreferences prefs(Context c) {
         return c.getSharedPreferences("cursor-remote", MODE_PRIVATE);
     }
@@ -67,13 +84,15 @@ public class NotifyService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         createChannels();
-        // Listening channel is IMPORTANCE_MIN with no sound — keep the shade entry quiet.
-        Notification listening = builder(CH_LISTEN)
+        // Listening channel is quiet — keep the shade entry from demoting Agent alerts.
+        Notification.Builder listenBuilder = builder(CH_LISTEN)
                 .setContentTitle(tr("Cursor Remote 正在等待 Agent 的消息", "Cursor Remote is listening for the Agent"))
                 .setContentText(tr("Agent 完成或需要你确认时会提醒你", "You'll be alerted when the Agent finishes or needs your OK"))
                 .setContentIntent(openApp(null, null, 0))
                 .setOngoing(true)
-                .build();
+                .setCategory(Notification.CATEGORY_SERVICE);
+        if (Build.VERSION.SDK_INT >= 29) listenBuilder.setSilent(true);
+        Notification listening = listenBuilder.build();
         if (Build.VERSION.SDK_INT >= 34) startForeground(LISTEN_ID, listening, ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING);
         else startForeground(LISTEN_ID, listening);
 
@@ -203,14 +222,23 @@ public class NotifyService extends Service {
                 .setStyle(new Notification.BigTextStyle().bigText(e.optString("body", "")))
                 .setContentIntent(openApp(win, null, id))
                 .setAutoCancel(true)
-                .setCategory(Notification.CATEGORY_MESSAGE)
-                .setVisibility(Notification.VISIBILITY_PRIVATE);
+                .setCategory(Notification.CATEGORY_ALARM)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setGroup(GROUP_ALERTS)
+                .setOnlyAlertOnce(false);
+        if (Build.VERSION.SDK_INT >= 26) {
+            b.setGroupAlertBehavior(Notification.GROUP_ALERT_ALL);
+        }
+        if (Build.VERSION.SDK_INT >= 29) {
+            // Explicitly not silent — OEMs otherwise inherit silence from the FGS listen notification.
+            b.setSilent(false);
+        }
         if (Build.VERSION.SDK_INT < 26) {
-            b.setPriority(Notification.PRIORITY_HIGH);
+            b.setPriority(Notification.PRIORITY_MAX);
             b.setDefaults(Notification.DEFAULT_ALL);
             b.setSound(sound);
+            b.setVibrate(new long[]{0, 160, 80, 160});
         } else {
-            // Channel owns sound on O+; still set for OEMs that honor per-notification sound.
             b.setSound(sound);
         }
         if ("waiting".equals(kind)) {
@@ -237,14 +265,22 @@ public class NotifyService extends Service {
     }
 
     private void createChannels() {
+        createChannelsStatic(this);
+    }
+
+    private static void createChannelsStatic(Context c) {
         if (Build.VERSION.SDK_INT < 26) return;
-        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        // Drop silent legacy channel so users aren't stuck with a muted "events" channel from older installs.
+        NotificationManager nm = (NotificationManager) c.getSystemService(NOTIFICATION_SERVICE);
+        // Drop silent legacy channels so users aren't stuck with a muted channel from older installs.
         try { nm.deleteNotificationChannel("events"); } catch (Exception ignored) {}
+        try { nm.deleteNotificationChannel("listen"); } catch (Exception ignored) {}
+        try { nm.deleteNotificationChannel("listen_v2"); } catch (Exception ignored) {}
+        try { nm.deleteNotificationChannel("agent_done_v2"); } catch (Exception ignored) {}
+        try { nm.deleteNotificationChannel("agent_wait_v2"); } catch (Exception ignored) {}
 
         Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         AudioAttributes audio = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build();
 
@@ -258,6 +294,7 @@ public class NotifyService extends Service {
         done.enableLights(true);
         done.setSound(sound, audio);
         done.setShowBadge(true);
+        done.setBypassDnd(false);
         nm.createNotificationChannel(done);
 
         NotificationChannel wait = new NotificationChannel(
@@ -272,9 +309,11 @@ public class NotifyService extends Service {
         wait.setShowBadge(true);
         nm.createNotificationChannel(wait);
 
-        NotificationChannel listen = new NotificationChannel(CH_LISTEN, tr("后台连接", "Background connection"), NotificationManager.IMPORTANCE_MIN);
+        // LOW (not MIN) — ColorOS/OnePlus put MIN into Aggregate_SilentSection and can demote the whole app.
+        NotificationChannel listen = new NotificationChannel(CH_LISTEN, tr("后台连接", "Background connection"), NotificationManager.IMPORTANCE_LOW);
         listen.setShowBadge(false);
         listen.setSound(null, null);
+        listen.enableVibration(false);
         nm.createNotificationChannel(listen);
     }
 

@@ -124,10 +124,17 @@
   /* Quick-prompt chips removed — use slash / recipes instead; frees footer space. */
   #quickPrompts { display: none !important; }
   #chatTools { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
-  #chatTools[hidden], .row.composer[hidden] { display: none !important; }
+  #chatTools[hidden], .row.composer[hidden], #usageBar[hidden] { display: none !important; }
   #chatTools::-webkit-scrollbar { display: none; }
   #chatTools button { font-size: 12.5px; padding: 3px 10px; border-radius: 14px; flex: none; white-space: nowrap; }
   #chatTools #pickModel { flex: 0 1 auto; min-width: 84px; overflow: hidden; text-overflow: ellipsis; }
+  /* Cursor included-usage chip mirrored under Stop / History */
+  #usageBar { display: flex; align-items: center; gap: 10px; padding: 2px 2px 0; min-width: 0; }
+  #usageBar .usageTrack { flex: 1; min-width: 0; height: 6px; border-radius: 3px; background: #333; overflow: hidden; }
+  #usageBar .usageFill { height: 100%; width: 0%; border-radius: 3px; background: #3c9a5f; transition: width .25s ease, background .25s ease; }
+  #usageBar.hot .usageFill { background: #c9a227; }
+  #usageBar.crit .usageFill { background: #c44; }
+  #usageLabel { flex: none; font-size: 12px; color: #aaa; font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; }
   /* Message field on its own row so icons never crush the textarea on phones. */
   .row.composer { display: flex; flex-direction: column; gap: 8px; min-width: 0; align-items: stretch; }
   .composer-actions { display: flex; gap: 8px; min-width: 0; align-items: center; }
@@ -150,6 +157,7 @@
   /* Files tab = reading only — no chat composer / History tools. */
   body.files-only footer .row.composer,
   body.files-only footer #chatTools,
+  body.files-only footer #usageBar,
   body.files-only footer #presenceBar,
   body.files-only footer #quickPrompts { display: none !important; }
   body.files-only footer { padding: 4px 10px; gap: 0; border-top-color: #2a2a2a; }
@@ -431,6 +439,10 @@
     <button id="pickHistory">History</button>
     <button id="newChat">+ New</button>
   </div>
+  <div id="usageBar" hidden aria-label="Cursor usage">
+    <div class="usageTrack"><div class="usageFill" id="usageFill"></div></div>
+    <span id="usageLabel">Usage —</span>
+  </div>
   <div class="row composer">
     <textarea id="text" rows="1" placeholder="Message Cursor Agent…" enterkeyhint="send"></textarea>
     <div class="composer-actions">
@@ -470,7 +482,7 @@
 <script src="i18n.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const UI_BUILD = 23; // bump when shell layout must force-refresh on phones
+const UI_BUILD = 24; // bump when shell layout must force-refresh on phones
 const PRIMARY = /^(run|allow|accept|approve|keep|continue|build|yes|运行|允许|接受|继续)/i;
 const store = {
   get: k => localStorage.getItem('cr-' + k),
@@ -499,6 +511,19 @@ fitViewport();
 function status(text, ok = true) {
   $('msg').textContent = text;
   $('msg').className = ok ? '' : 'err';
+}
+
+function renderUsage(pct) {
+  const bar = $('usageBar');
+  if (!bar) return;
+  if (pct == null || !Number.isFinite(pct)) { bar.hidden = true; return; }
+  const n = Math.max(0, Math.min(100, Math.round(pct)));
+  bar.hidden = false;
+  bar.classList.toggle('hot', n >= 80 && n < 95);
+  bar.classList.toggle('crit', n >= 95);
+  $('usageFill').style.width = n + '%';
+  $('usageLabel').textContent = n + '%';
+  bar.setAttribute('aria-label', 'Usage ' + n + '%');
 }
 
 function send(obj) {
@@ -784,6 +809,7 @@ function connect() {
     else if (m.t === 'presence') applyPresence(m);
     else if (m.t === 'dash') renderDash(m);
     else if (m.t === 'clipboard') onClipboardPull(m);
+    else if (m.t === 'usage') renderUsage(m.pct);
     else if (m.t === 'status') status(m.msg, m.ok);
   };
 }
@@ -1157,6 +1183,9 @@ function applyViews() {
   $('chatTools').hidden = mode === 'screen' || filesOnly;
   const composer = document.querySelector('footer .row.composer');
   if (composer) composer.hidden = filesOnly;
+  // Keep usage visible on Chat/Dual; hide with composer on Files/Screen.
+  if (filesOnly || mode === 'screen') $('usageBar').hidden = true;
+  else if ($('usageFill')?.style.width && $('usageFill').style.width !== '0%') $('usageBar').hidden = false;
 }
 
 function showChanges(m) {
@@ -1340,7 +1369,8 @@ function showMainMenu() {
   const notifyItem = notifyOn
     ? `<button class="opt" data-act="notifyOff"><span class="lbl">Notifications: on${permBlocked ? ' (blocked by Android)' : ''}<span class="sub">Alerts when the Agent finishes or needs your OK</span></span><span class="tag">Turn off</span></button>
        <button class="opt" data-act="notifyTest"><span class="lbl">Send a test notification</span></button>
-       ${permBlocked || nativeNotify() ? '<button class="opt" data-act="notifySettings"><span class="lbl">Open Android notification settings<span class="sub">Permission must be Allow, not Don’t allow</span></span></button>' : ''}`
+       ${permBlocked || nativeNotify() ? '<button class="opt" data-act="notifySettings"><span class="lbl">Open Android notification settings<span class="sub">Permission must be Allow, not Don’t allow</span></span></button>' : ''}
+       ${nativeNotify() ? '<button class="opt" data-act="notifyReset"><span class="lbl">Fix silent notifications<span class="sub">Recreate alert channels (stuck Silent → Default/Sound)</span></span></button>' : ''}`
     : `<button class="opt" data-act="notifyOn"><span class="lbl">Turn on notifications<span class="sub">Alerts when the Agent finishes or needs your OK</span></span></button>`;
   const update = apkUpdate()
     ? `<button class="opt" data-act="appUpdate"><span class="lbl">Update the Android app (v${esc(appVersion)} → v${esc(apkUpdate())})</span><span class="tag">New</span></button>`
@@ -1635,6 +1665,14 @@ $('sheet').addEventListener('click', async e => {
   else if (act === 'notifySettings') {
     closeSheet();
     window.CursorRemoteApp?.openNotificationSettings?.();
+  }
+  else if (act === 'notifyReset') {
+    closeSheet();
+    if (!window.CursorRemoteApp?.resetNotificationChannels) {
+      return status('Update the Android app to fix silent channels', false);
+    }
+    window.CursorRemoteApp.resetNotificationChannels();
+    status('Channels reset — set Agent finished to Sound, then send a test notification');
   }
   else if (act === 'appUpdate') {
     closeSheet();
