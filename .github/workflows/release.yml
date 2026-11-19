@@ -93,6 +93,22 @@ jobs:
             packaging/out/CursorRemote-linux-x64.deb
             packaging/out/CursorRemote_*_amd64.deb
 
+  vsix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build VSIX
+        run: |
+          npm --prefix extension ci
+          npm --prefix extension run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CursorRemote-vsix
+          path: packaging/out/cursor-remote-lite.vsix
+
   windows:
     needs: apk
     runs-on: windows-latest
@@ -137,7 +153,7 @@ jobs:
             packaging/out/CursorRemote-*-win-x64.zip
 
   release:
-    needs: [apk, windows, linux]
+    needs: [apk, windows, linux, vsix]
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
     steps:
@@ -155,6 +171,7 @@ jobs:
           cp artifacts/CursorRemote-windows/CursorRemote.msi dist/
           cp artifacts/CursorRemote-linux/CursorRemote-linux-x64.deb dist/
           cp artifacts/CursorRemote-linux/CursorRemote-*-linux-x64.tar.gz dist/
+          cp artifacts/CursorRemote-vsix/cursor-remote-lite.vsix dist/
           ls -lh dist
 
       - name: Publish GitHub Release
@@ -167,12 +184,14 @@ jobs:
           ### Downloads
           - **CursorRemote.exe** / **CursorRemote.msi** — Windows. Auto-pairs over ADB when the APK is nearby.
           - **CursorRemote-linux-x64.deb** / **CursorRemote-*-linux-x64.tar.gz** — Linux Mint / Ubuntu (`cursor-remote`).
+          - **cursor-remote-lite.vsix** — free Cursor/VS Code extension (sidebar start/stop, setup panel).
           - **CursorRemote.apk** — Android app (**Cursor Remote**).
 
           ### First run
-          1. Install/run the desktop package for your OS.
+          1. Install/run the desktop package for your OS (or the VSIX).
           2. Install the APK *or* leave it next to the desktop app with USB debugging on — ADB install + pairing deep link run automatically.
           3. Keep the Cursor Remote window/terminal open while you use your phone.
+          Optional: set TELEGRAM_BOT_TOKEN and /start the bot for Approve/Skip/Stop alerts.
           EOF
           )
           gh release create "$GITHUB_REF_NAME" dist/* \

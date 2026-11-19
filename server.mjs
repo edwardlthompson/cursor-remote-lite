@@ -14,6 +14,7 @@ import {
 } from './auth.mjs';
 import { pushPublicKey, openEventStream, closeEventStreams, addViewer, removeViewer, deliver, startWatcher, watcherStats } from './notify.mjs';
 import { startTelegramBot, telegramEnabled } from './telegram.mjs';
+import { createHeadless } from './headless.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3939);
@@ -1615,10 +1616,29 @@ server.listen(PORT, HOST, async () => {
     openCdp: async ws => { const c = new Cdp(ws); await c.connect(); return c; },
     probe: helpersCall('agentState()'),
   });
+  const headless = createHeadless({
+    listWindows,
+    openCdp: async ws => { const c = new Cdp(ws); await c.connect(); return c; },
+    helpersCall,
+  });
   if (telegramEnabled()) {
     startTelegramBot({
       onPrompt: async ({ text }) => {
-        console.log(`[telegram] Prompt received (${text.length} chars) — open a phone session or use Chat to send; CDP send-from-Telegram is next.`);
+        const st = readState();
+        const winId = st.lastAlert?.win || st.lastWindows?.[0]?.id || null;
+        const r = await headless.sendPrompt(winId, text);
+        console.log(`[telegram] Sent prompt to ${r.title} (${r.chars} chars)`);
+        return `Sent to ${r.title}`;
+      },
+      onAction: async ({ action, winId }) => {
+        if (action === 'stop') {
+          const r = await headless.stop(winId);
+          console.log(`[telegram] Stop on ${r.title}`);
+          return `Stopped agent in ${r.title}`;
+        }
+        const r = await headless.clickWait(winId, action);
+        console.log(`[telegram] ${action} → ${r.label} on ${r.title}`);
+        return `${action === 'approve' ? 'Approved' : 'Skipped'} (${r.label}) in ${r.title}`;
       },
     });
   }

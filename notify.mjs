@@ -54,7 +54,7 @@ export const addViewer = v => viewers.add(v);
 export const removeViewer = v => viewers.delete(v);
 
 const watching = (deviceId, targetId) => [...viewers].some(v => v.deviceId === deviceId && v.visible && v.targetId === targetId);
-const wanted = () => streams.size > 0 || listDevices().some(d => d.push);
+const wanted = () => streams.size > 0 || listDevices().some(d => d.push) || telegramEnabled();
 
 /* ---------- delivery ---------- */
 
@@ -68,7 +68,7 @@ export async function deliver(event, onlyDevice = null) {
       lastAlertZh: zh || null,
     });
   } catch { /* ignore */ }
-  void telegramNotify({ title: en.title, body: en.body, win: en.win });
+  void telegramNotify({ kind: en.kind, title: en.title, body: en.body, win: en.win });
   for (const d of listDevices()) {
     if (onlyDevice ? d.id !== onlyDevice : watching(d.id, event.win)) continue;
     const payload = JSON.stringify(d.lang === 'zh' && zh ? { ...en, ...zh } : en);

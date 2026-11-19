@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { ServerManager } from './server-manager';
 import { StatusTreeProvider } from './status-tree';
 import { createStatusBar } from './status-bar';
+import { SetupPanel } from './setup-panel';
 
 let manager: ServerManager | undefined;
 
@@ -21,6 +22,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('cursorRemoteLite.openApp', () => manager!.openApp()),
     vscode.commands.registerCommand('cursorRemoteLite.showLogs', () => output.show(true)),
     vscode.commands.registerCommand('cursorRemoteLite.adbPair', () => manager!.adbPair()),
+    vscode.commands.registerCommand('cursorRemoteLite.openSetup', () => SetupPanel.show(context, manager!)),
     manager,
   );
 

@@ -34,5 +34,33 @@ test('telegram and watcher persistence hooks exist', async () => {
   assert.match(notify, /telegramNotify/);
   assert.match(notify, /lastAlert/);
   assert.match(notify, /watchedWindows/);
+  assert.match(notify, /telegramEnabled/);
   assert.match(tg, /startTelegramBot/);
+  assert.match(tg, /callback_query|answerCallbackQuery/);
+  assert.match(tg, /Approve/);
+});
+
+test('headless CDP bridge exposes approve/reject/stop/send', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../headless.mjs', import.meta.url), 'utf8');
+  assert.match(src, /clickWait/);
+  assert.match(src, /sendPrompt/);
+  assert.match(src, /createHeadless/);
+});
+
+test('waiting button preference prefers Run/Allow over background', () => {
+  const WAIT_OK = /^(?!.*(background|后台))(run|allow|accept|approve|continue|yes\b|运行|允许|接受|批准|继续)/i;
+  assert.equal(WAIT_OK.test('Run'), true);
+  assert.equal(WAIT_OK.test('Allow'), true);
+  assert.equal(WAIT_OK.test('Run in background'), false);
+  assert.equal(WAIT_OK.test('Skip'), false);
+});
+
+test('extension setup panel and package contribute openSetup', async () => {
+  const fs = await import('node:fs');
+  const pkg = JSON.parse(fs.readFileSync(new URL('../extension/package.json', import.meta.url), 'utf8'));
+  assert.ok(pkg.contributes.commands.some(c => c.command === 'cursorRemoteLite.openSetup'));
+  const setup = fs.readFileSync(new URL('../extension/src/setup-panel.ts', import.meta.url), 'utf8');
+  assert.match(setup, /networkMode/);
+  assert.match(setup, /Telegram/);
 });

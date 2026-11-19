@@ -42,7 +42,8 @@
       { "command": "cursorRemoteLite.pair", "title": "Cursor Remote Lite: Pair Phone (QR)" },
       { "command": "cursorRemoteLite.openApp", "title": "Cursor Remote Lite: Open Phone App" },
       { "command": "cursorRemoteLite.showLogs", "title": "Cursor Remote Lite: Show Logs" },
-      { "command": "cursorRemoteLite.adbPair", "title": "Cursor Remote Lite: ADB Install + Pair" }
+      { "command": "cursorRemoteLite.adbPair", "title": "Cursor Remote Lite: ADB Install + Pair" },
+      { "command": "cursorRemoteLite.openSetup", "title": "Cursor Remote Lite: Open Setup Panel" }
     ],
     "configuration": {
       "title": "Cursor Remote Lite",
