@@ -59,6 +59,40 @@ jobs:
           name: CursorRemote-apk
           path: CursorRemote.apk
 
+  linux:
+    needs: apk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: CursorRemote-apk
+          path: .
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ inputs.version || '1.6.0' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build Linux tar.gz + deb
+        run: |
+          chmod +x packaging/linux/build.sh
+          ./packaging/linux/build.sh '${{ steps.ver.outputs.version }}' "$(pwd)/CursorRemote.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CursorRemote-linux
+          path: |
+            packaging/out/CursorRemote-*-linux-x64.tar.gz
+            packaging/out/CursorRemote-linux-x64.deb
+            packaging/out/CursorRemote_*_amd64.deb
+
   windows:
     needs: apk
     runs-on: windows-latest
@@ -103,7 +137,7 @@ jobs:
             packaging/out/CursorRemote-*-win-x64.zip
 
   release:
-    needs: [apk, windows]
+    needs: [apk, windows, linux]
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
     steps:
@@ -119,6 +153,8 @@ jobs:
           cp artifacts/CursorRemote-apk/CursorRemote.apk dist/
           cp artifacts/CursorRemote-windows/CursorRemote.exe dist/
           cp artifacts/CursorRemote-windows/CursorRemote.msi dist/
+          cp artifacts/CursorRemote-linux/CursorRemote-linux-x64.deb dist/
+          cp artifacts/CursorRemote-linux/CursorRemote-*-linux-x64.tar.gz dist/
           ls -lh dist
 
       - name: Publish GitHub Release
@@ -129,19 +165,17 @@ jobs:
           ## Cursor Remote ${{ github.ref_name }}
 
           ### Downloads
-          - **CursorRemote.exe** — Windows app (self-extracting). Double-click to install payload and start. If a phone is connected over ADB and/or `CursorRemote.apk` is in the same folder, pairing runs automatically.
-          - **CursorRemote.msi** — Windows installer (Start Menu shortcut).
+          - **CursorRemote.exe** / **CursorRemote.msi** — Windows. Auto-pairs over ADB when the APK is nearby.
+          - **CursorRemote-linux-x64.deb** / **CursorRemote-*-linux-x64.tar.gz** — Linux Mint / Ubuntu (`cursor-remote`).
           - **CursorRemote.apk** — Android app (**Cursor Remote**).
 
           ### First run
-          1. Install/run the Windows EXE or MSI.
-          2. Install the APK on your phone *or* leave `CursorRemote.apk` next to the EXE with USB debugging enabled — the app will `adb install` and open the pairing deep link for you.
-          3. Keep the Cursor Remote window open while you use your phone.
+          1. Install/run the desktop package for your OS.
+          2. Install the APK *or* leave it next to the desktop app with USB debugging on — ADB install + pairing deep link run automatically.
+          3. Keep the Cursor Remote window/terminal open while you use your phone.
           EOF
           )
-          gh release create "$GITHUB_REF_NAME" \
-            dist/CursorRemote.exe \
-            dist/CursorRemote.msi \
-            dist/CursorRemote.apk \
+          gh release create "$GITHUB_REF_NAME" dist/* \
             --title "Cursor Remote $GITHUB_REF_NAME" \
             --notes "$NOTES"
+          

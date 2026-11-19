@@ -15,7 +15,9 @@
     "devices": "node devices.mjs",
     "2fa": "node twofa.mjs",
     "win": "node win-run.mjs",
+    "linux": "node linux-run.mjs",
     "dist:win": "powershell -ExecutionPolicy Bypass -File .\\packaging\\windows\\build.ps1",
+    "dist:linux": "bash ./packaging/linux/build.sh",
     "reset": "node -e \"const d=require('os').homedir()+'/.cursor-remote-lite/';for(const f of ['url-key','devices.json','pairing.json','totp.json','config.json','state.json'])require('fs').rmSync(d+f,{force:true});console.log('Reset complete: re-pair all devices; two-factor is off')\""
   },
   "engines": {

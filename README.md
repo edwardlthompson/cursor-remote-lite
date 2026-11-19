@@ -156,6 +156,7 @@ If you can't scan it, send the link shown below the QR code to your phone and op
 
 - **iPhone**: open it in Safari → Share → Add to Home Screen
 - **Windows (recommended)**: download [CursorRemote.exe](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.exe) or [CursorRemote.msi](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.msi). On first run it sets up the relay; if a phone is connected over ADB and/or `CursorRemote.apk` is in the same folder, it installs the app and opens pairing automatically.
+- **Linux (Mint / Ubuntu)**: download [CursorRemote-linux-x64.deb](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-linux-x64.deb) (`sudo apt install ./CursorRemote-linux-x64.deb`) or the [tar.gz](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote-1.6.0-linux-x64.tar.gz), then run `cursor-remote`. Same ADB auto-pair behavior as Windows.
 - **Android**: download and install [CursorRemote.apk](https://github.com/edwardlthompson/cursor-remote-lite/releases/latest/download/CursorRemote.apk) (app name: **Cursor Remote**), then scan the pairing code — or use EXE/MSI auto-pair over ADB as above.
   Works on Huawei and other phones without Google services (the browser's "Install app" option usually isn't available on these phones).
   Note: pure HarmonyOS (HarmonyOS NEXT / 5.0 and later) can't install APKs directly; install "Zhuoyitong" (卓易通) first.
