@@ -115,10 +115,10 @@ public class MainActivity extends Activity {
             else load();
         }
         maybePostTestFromIntent(getIntent());
-        // Migrate silent-stuck channels once after APK upgrade.
-        if (!prefs.getBoolean("channelsV3", false)) {
+        // Migrate silent/DND-stuck channels once after APK upgrade.
+        if (!prefs.getBoolean("channelsV4", false)) {
             NotifyService.resetChannels(this);
-            prefs.edit().putBoolean("channelsV3", true).apply();
+            prefs.edit().putBoolean("channelsV4", true).putBoolean("channelsV3", true).apply();
         }
         // Always keep a foreground service so the process (and WebSocket) survive Home / app switch.
         NotifyService.start(this);
@@ -280,9 +280,9 @@ public class MainActivity extends Activity {
         prefs.edit().putString(NotifyService.PREF, config).apply();
         requestNotifyPermission();
         // Recreate alert channels so OEMs can't keep an old channel locked on Silent.
-        if (!prefs.getBoolean("channelsV3", false)) {
+        if (!prefs.getBoolean("channelsV4", false)) {
             NotifyService.resetChannels(this);
-            prefs.edit().putBoolean("channelsV3", true).apply();
+            prefs.edit().putBoolean("channelsV4", true).putBoolean("channelsV3", true).apply();
         }
         // Without this, stock Android may stop the listener after the phone has been idle for a while.
         PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
@@ -455,7 +455,7 @@ public class MainActivity extends Activity {
         public void resetNotificationChannels() {
             runOnUiThread(() -> {
                 NotifyService.resetChannels(MainActivity.this);
-                prefs.edit().putBoolean("channelsV3", true).apply();
+                prefs.edit().putBoolean("channelsV4", true).putBoolean("channelsV3", true).apply();
                 NotifyService.start(MainActivity.this, false);
                 Toast.makeText(MainActivity.this, NotifyService.tr(
                         "已重建通知渠道，请再发一条测试通知",

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.9.6
+
+- **DND-safe alert channels** (`*_v4`): Agent finished / waiting bypass Priority mode so tablet Do Not Disturb no longer hides test/done alerts from the shade (and OpenShouter).
+
 ## 1.9.5
 
 - **Test notifications actually post**: menu test posts a local timestamped alert immediately (no SSE race). `setNotify` no longer restarts the event stream when the config is unchanged. Relay SSE replays a recent `lastAlert` on connect so Agent-finished events survive brief reconnects.

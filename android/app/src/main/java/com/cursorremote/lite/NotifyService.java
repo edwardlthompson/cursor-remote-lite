@@ -39,9 +39,9 @@ public class NotifyService extends Service {
     static final String PREF = "notify";
     private static final String TAG = "CursorRemoteNotify";
     // Bump ids whenever OEMs lock an old channel to Silent — apps cannot raise locked channel importance.
-    private static final String CH_DONE = "agent_done_v3";
-    private static final String CH_WAIT = "agent_wait_v3";
-    private static final String CH_LISTEN = "listen_v3";
+    private static final String CH_DONE = "agent_done_v4";
+    private static final String CH_WAIT = "agent_wait_v4";
+    private static final String CH_LISTEN = "listen_v4";
     private static final int LISTEN_ID = 1;
 
     private volatile boolean running;
@@ -134,9 +134,9 @@ public class NotifyService extends Service {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = (NotificationManager) c.getSystemService(NOTIFICATION_SERVICE);
         String[] legacy = {
-                "events", "listen", "listen_v2", "listen_v3",
-                "agent_done", "agent_done_v2", "agent_done_v3",
-                "agent_wait", "agent_wait_v2", "agent_wait_v3",
+                "events", "listen", "listen_v2", "listen_v3", "listen_v4",
+                "agent_done", "agent_done_v2", "agent_done_v3", "agent_done_v4",
+                "agent_wait", "agent_wait_v2", "agent_wait_v3", "agent_wait_v4",
         };
         for (String id : legacy) {
             try { nm.deleteNotificationChannel(id); } catch (Exception ignored) {}
@@ -320,11 +320,13 @@ public class NotifyService extends Service {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = (NotificationManager) c.getSystemService(NOTIFICATION_SERVICE);
         // Drop silent legacy channels so users aren't stuck with a muted channel from older installs.
-        try { nm.deleteNotificationChannel("events"); } catch (Exception ignored) {}
-        try { nm.deleteNotificationChannel("listen"); } catch (Exception ignored) {}
-        try { nm.deleteNotificationChannel("listen_v2"); } catch (Exception ignored) {}
-        try { nm.deleteNotificationChannel("agent_done_v2"); } catch (Exception ignored) {}
-        try { nm.deleteNotificationChannel("agent_wait_v2"); } catch (Exception ignored) {}
+        for (String id : new String[]{
+                "events", "listen", "listen_v2", "listen_v3",
+                "agent_done", "agent_done_v2", "agent_done_v3",
+                "agent_wait", "agent_wait_v2", "agent_wait_v3",
+        }) {
+            try { nm.deleteNotificationChannel(id); } catch (Exception ignored) {}
+        }
 
         Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         AudioAttributes audio = new AudioAttributes.Builder()
@@ -342,7 +344,8 @@ public class NotifyService extends Service {
         done.enableLights(true);
         done.setSound(sound, audio);
         done.setShowBadge(true);
-        done.setBypassDnd(false);
+        // Priority/DND on tablets was swallowing Agent alerts (shade + OpenShouter).
+        done.setBypassDnd(true);
         nm.createNotificationChannel(done);
 
         NotificationChannel wait = new NotificationChannel(
@@ -355,6 +358,7 @@ public class NotifyService extends Service {
         wait.enableLights(true);
         wait.setSound(sound, audio);
         wait.setShowBadge(true);
+        wait.setBypassDnd(true);
         nm.createNotificationChannel(wait);
 
         // LOW (not MIN) — ColorOS/OnePlus put MIN into Aggregate_SilentSection and can demote the whole app.
