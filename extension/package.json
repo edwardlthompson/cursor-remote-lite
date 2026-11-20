@@ -2,7 +2,7 @@
   "name": "cursor-remote-lite",
   "displayName": "Cursor Remote Lite",
   "description": "Free relay for Cursor Remote Lite: start/stop the phone relay, CDP status, pairing, Setup panel. MIT — no license key.",
-  "version": "1.8.3",
+  "version": "1.10.0",
   "publisher": "edwardlthompson",
   "license": "MIT",
   "icon": "media/icon.png",

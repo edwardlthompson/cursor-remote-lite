@@ -38,14 +38,15 @@ test('renderMarkdown handles BUILD_PLAN features', () => {
   const out = renderMarkdown(plan);
   assert.doesNotMatch(out, /&lt;!--/);
   assert.match(out, /<h1>Build Plan<\/h1>/);
-  assert.match(out, /<h2>Sprint 1/);
+  assert.match(out, /<h2>Parked|<h2>Sprint|<h2>Archive|<h2>Product/);
   assert.match(out, /href="https:\/\/github\.com\/edwardlthompson\/agent-project-bootstrap"/);
   assert.match(out, /data-md-path="docs\/help\/BATCH_COMMANDS\.md"/);
   assert.match(out, /data-md-path="docs\/GAP_LIST\.md"/);
-  assert.match(out, /data-md-path="COMPLETED_TASKS\.md"/);
+  assert.match(out, /COMPLETED_TASKS\.md/);
   assert.match(out, /<hr>/);
   assert.match(out, /<code>AGENT<\/code>/);
   assert.match(out, /<table>/);
+  assert.match(out, /local-agent-lane|Local agent/);
 });
 
 test('renderMarkdown supports fenced code and task lists', () => {

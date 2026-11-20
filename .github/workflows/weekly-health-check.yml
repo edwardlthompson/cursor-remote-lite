@@ -1,0 +1,62 @@
+name: Weekly Health Check
+
+# Child-scoped: npm test + validate + workflow presence + Dependabot leftovers.
+# Does not pull parent check-*.sh farm (see docs/GAP_LIST.md § E).
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  health:
+    name: Weekly Workflow Health
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      security-events: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: npm ci + test
+        run: |
+          npm ci
+          npm test
+
+      - name: validate-bootstrap (quick)
+        run: python3 scripts/agent-run.py validate-bootstrap --quick
+
+      - name: Required workflows present
+        run: |
+          for f in android.yml release.yml codeql.yml scorecard.yml dependabot-automerge.yml weekly-health-check.yml; do
+            test -f ".github/workflows/$f" || { echo "missing $f"; exit 1; }
+          done
+          test -f .github/dependabot.yml || { echo "missing dependabot.yml"; exit 1; }
+          echo "OK: required workflows + dependabot.yml present"
+
+      - name: Open Dependabot PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr list --label dependencies --state open --json number,title,url \
+            --jq '"Open Dependabot PRs: " + (length|tostring), (.[] | "- #\(.number) \(.title) \(.url)")'
+
+      - name: Recent workflow conclusions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run list --limit 15 --json name,conclusion,status,headBranch,createdAt \
+            --jq '.[] | "\(.createdAt) \(.name) \(.status)/\(.conclusion // "-") \(.headBranch)"'

@@ -1,0 +1,7 @@
+{
+  "icon": "branding/assets/app-icon-1024.png",
+  "icon_sha256": "a82b7f139504cf228a68f8bfbc186079978313e5519a60eeb388e5d3172f21a2",
+  "source": "owned",
+  "brand_name": "Cursor Remote Lite",
+  "tokens": "config/tokens.json"
+}

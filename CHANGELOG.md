@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.10.0
+
+- **Phone UI (31–32)**: collapsible composer for Dual pane monitor mode; usage + connection dock; status bell; compact Stop on the running banner; `npm run sync-ui` pushes Pages/`LocalAppData` and force-reloads Android WebViews.
+- **Bootstrap child**: Argus contract (remote off), slash recipes, `AGENTS.md`, security/CI gates (CodeQL, Scorecard, Dependabot, gitleaks), BUILD_PLAN B/C/D catch-up — board clear (0 open / 0 parked).
+- **Agent ops**: product `docs/PARALLEL_AGENT_SCOPES.md`; `npm run sprint-status` (+ wrappers) reads next `🔲 [AGENT]` from BUILD_PLAN.
+- **Release**: keep custom `release.yml` (EXE/MSI/deb/APK/VSIX); `docs/RELEASE_SUPPLY_CHAIN.md`; Open VSX publish job skips when `OVSX_PAT` is unset.
+- **Docs pitch**: tablet landscape dual-pane GIF (`docs/en/ui-tablet-dualpane.gif`) in README; Windows host / APK keystore / remote-desktop plan notes.
+
 ## 1.9.7
 
 - **Agent finished alerts**: detect modern Agents “Stop generation” / “Stop Ctrl+…” controls (and Running tail status) so done notifications fire when a prompt finishes.

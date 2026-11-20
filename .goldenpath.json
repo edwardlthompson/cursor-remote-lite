@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "stacks": ["node"],
+  "entrypoints": {
+    "node": ["server.mjs", "app/index.html"]
+  },
+  "orphan_classes": [
+    "GOLDENPATH-ORPHAN-TREE"
+  ]
+}

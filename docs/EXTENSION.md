@@ -23,7 +23,15 @@ Set `cursorRemoteLite.repoPath` if the extension cannot find `server.mjs`.
 
 The package is marketplace-ready (`icon`, `galleryBanner`, `repository`, keywords).
 
-Publish to [Open VSX](https://open-vsx.org/) when you have a personal access token:
+### Automated (preferred)
+
+1. Create a token at https://open-vsx.org/user-settings/tokens
+2. Store it on the repo: `gh secret set OVSX_PAT`
+3. Tag a release (`v*`). The **Release** workflow’s `ovsx` job publishes the VSIX when `OVSX_PAT` is set; if the secret is missing the job is skipped and CI stays green.
+
+Supply-chain notes: [`RELEASE_SUPPLY_CHAIN.md`](RELEASE_SUPPLY_CHAIN.md).
+
+### Manual
 
 ```bash
 # create a token at https://open-vsx.org/user-settings/tokens
@@ -37,4 +45,4 @@ VS Marketplace requires a publisher identity at https://marketplace.visualstudio
 npx @vscode/vsce publish -p "$VSCE_PAT"
 ```
 
-Until those tokens exist, **GitHub Releases remains the official distribution channel** (same VSIX users install today).
+Until `OVSX_PAT` exists, **GitHub Releases remains the official distribution channel** (same VSIX users install today).

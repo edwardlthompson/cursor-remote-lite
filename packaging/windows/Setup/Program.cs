@@ -19,26 +19,34 @@ internal static class Program
         if (needExtract)
         {
             // Brief console only while extracting so first-run isn't silent forever.
+            // FreeConsole afterwards so the tray host stays WinExe without a leftover window.
             AllocConsoleSafe();
-            Console.WriteLine("Extracting Cursor Remote 1.8.0…");
-            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip")
-                ?? throw new InvalidOperationException("Embedded payload.zip missing");
-            var tmp = Path.Combine(Path.GetTempPath(), "CursorRemote-" + Guid.NewGuid().ToString("N") + ".zip");
-            using (var fs = File.Create(tmp)) stream.CopyTo(fs);
-
-            foreach (var path in Directory.GetFileSystemEntries(target))
+            try
             {
-                try
+                Console.WriteLine("Extracting Cursor Remote 1.8.0…");
+                using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip")
+                    ?? throw new InvalidOperationException("Embedded payload.zip missing");
+                var tmp = Path.Combine(Path.GetTempPath(), "CursorRemote-" + Guid.NewGuid().ToString("N") + ".zip");
+                using (var fs = File.Create(tmp)) stream.CopyTo(fs);
+
+                foreach (var path in Directory.GetFileSystemEntries(target))
                 {
-                    if (File.Exists(path)) File.Delete(path);
-                    else Directory.Delete(path, true);
+                    try
+                    {
+                        if (File.Exists(path)) File.Delete(path);
+                        else Directory.Delete(path, true);
+                    }
+                    catch { /* in use */ }
                 }
-                catch { /* in use */ }
+                Directory.CreateDirectory(target);
+                ZipFile.ExtractToDirectory(tmp, target, true);
+                File.WriteAllText(stamp, want + Environment.NewLine);
+                try { File.Delete(tmp); } catch { }
             }
-            Directory.CreateDirectory(target);
-            ZipFile.ExtractToDirectory(tmp, target, true);
-            File.WriteAllText(stamp, want + Environment.NewLine);
-            try { File.Delete(tmp); } catch { }
+            finally
+            {
+                FreeConsoleSafe();
+            }
         }
 
         var exeDir = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
@@ -58,8 +66,16 @@ internal static class Program
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
     private static extern bool AllocConsole();
 
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool FreeConsole();
+
     private static void AllocConsoleSafe()
     {
         try { AllocConsole(); } catch { /* */ }
+    }
+
+    private static void FreeConsoleSafe()
+    {
+        try { FreeConsole(); } catch { /* */ }
     }
 }

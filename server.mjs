@@ -10,7 +10,7 @@ import qrcode from 'qrcode-terminal';
 import { workspaces, workspaceForTitle, fileSize, readFile, readDiff, parseRef, searchFiles } from './files.mjs';
 import {
   DATA_DIR, encryptUrl, createPairing, pairingValid, consumePairing, listDevices, addDevice, findDevice, updateDevice,
-  removeDevice, totpConfig, verifyTotp, needsTotp, saveState, readState, appBase,
+  removeDevice, pruneStaleDevices, totpConfig, verifyTotp, needsTotp, saveState, readState, appBase,
 } from './auth.mjs';
 import { pushPublicKey, openEventStream, closeEventStreams, addViewer, removeViewer, deliver, startWatcher, watcherStats, watcherWindowStates, listViewers } from './notify.mjs';
 import { startTelegramBot, telegramEnabled } from './telegram.mjs';
@@ -19,6 +19,9 @@ import {
   claim as presenceClaim, heartbeat as presenceHeartbeat, release as presenceRelease,
   releaseAllForDevice, canControl, CONTROL_TYPES, snapshot as presenceSnapshot, allSnapshots,
 } from './presence.mjs';
+import {
+  APP_MIME, pagesUrl, putFile, remoteShas, syncAppFiles, readUiBuild,
+} from './sync-app.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3939);
@@ -1673,15 +1676,7 @@ const SECURITY_HEADERS = {
   'cache-control': 'no-store',
 };
 
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.webmanifest': 'application/manifest+json',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.svg': 'image/svg+xml',
-  '.json': 'application/json',
-};
+const MIME = APP_MIME;
 
 function corsHeaders(req) {
   const origin = req.headers.origin;
@@ -1722,6 +1717,14 @@ async function handleApi(req, res, route) {
   if (req.method === 'POST' && !originAllowed(req)) return json(req, res, 403, { error: 'bad origin' });
   const device = deviceFor(req);
 
+  // Localhost-only: force every live phone/tablet session to clear SW cache and reload Pages.
+  if (route === '/api/ui/reload' && req.method === 'POST') {
+    if (!isLoopbackReq(req)) return json(req, res, 403, { error: 'loopback only' });
+    const result = broadcastReloadUi();
+    console.log(`[ui] reload broadcast to ${result.viewers} viewer(s) (build ${result.build ?? '?'})`);
+    return json(req, res, 200, { ok: true, ...result });
+  }
+
   // Local status for the VS Code / Cursor extension (and health checks). No device token required.
   if (route === '/api/status') {
     let wins = [];
@@ -1734,7 +1737,7 @@ async function handleApi(req, res, route) {
     return json(req, res, 200, {
       ok: true,
       free: true,
-      version: '1.8.3',
+      version: '1.10.0',
       networkMode: NETWORK_MODE,
       host: HOST,
       port: PORT,
@@ -1925,34 +1928,28 @@ async function waitReachable(url) {
 }
 
 function appUrl() {
-  const [owner, repo] = PUBLISH_REPO.split('/');
-  return `https://${owner.toLowerCase()}.github.io/${repo}/`;
+  return pagesUrl(PUBLISH_REPO);
 }
 
-const gitBlobSha = buf => crypto.createHash('sha1').update(`blob ${buf.length}\0`).update(buf).digest('hex');
-
-async function putFile(name, buf, sha) {
-  const body = { message: `update ${name}`, content: buf.toString('base64'), ...(sha ? { sha } : {}) };
-  await run('gh', ['api', '-X', 'PUT', `repos/${PUBLISH_REPO}/contents/${name}`, '--input', '-'], JSON.stringify(body));
-}
-
-async function remoteShas() {
-  const out = await run('gh', ['api', `repos/${PUBLISH_REPO}/contents`, '--jq', '.[] | [.name, .sha] | @tsv']).catch(() => '');
-  return new Map(out.split('\n').filter(Boolean).map(l => l.split('\t')));
-}
-
-// Keeps the GitHub Pages copy of the app identical to app/, uploading only files that changed.
 async function syncApp() {
-  const remote = await remoteShas();
-  let changed = 0;
-  for (const name of fs.readdirSync(APP_DIR)) {
-    if (!MIME[path.extname(name)] || name === 'url.json') continue;
-    const buf = fs.readFileSync(path.join(APP_DIR, name));
-    if (remote.get(name) === gitBlobSha(buf)) continue;
-    await putFile(name, buf, remote.get(name));
-    changed++;
+  return syncAppFiles({ publishRepo: PUBLISH_REPO, appDir: APP_DIR });
+}
+
+function broadcastReloadUi() {
+  const build = readUiBuild(APP_DIR);
+  let n = 0;
+  for (const v of listViewers()) {
+    if (typeof v.emit === 'function') {
+      v.emit({ t: 'reloadUi', build });
+      n++;
+    }
   }
-  if (changed) console.log(`Synced ${changed} app file(s) to GitHub Pages`);
+  return { viewers: n, build };
+}
+
+function isLoopbackReq(req) {
+  const remote = req.socket.remoteAddress || '';
+  return remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
 }
 
 // Writes the current tunnel address (encrypted) to url.json, so the app on GitHub Pages can find this relay.
@@ -1964,8 +1961,8 @@ async function publishUrl(url) {
   }
   if (!await waitReachable(url)) console.log('!! New address is not reachable from the public internet yet; publishing anyway');
   try {
-    const remote = await remoteShas();
-    await putFile('url.json', Buffer.from(JSON.stringify(encryptUrl(url)) + '\n'), remote.get('url.json'));
+    const remote = await remoteShas(PUBLISH_REPO);
+    await putFile(PUBLISH_REPO, 'url.json', Buffer.from(JSON.stringify(encryptUrl(url)) + '\n'), remote.get('url.json'));
     console.log(`Published the latest address (GitHub Pages takes about 1 minute). Phone app URL: ${appUrl()}`);
     offerFirstPairing();
   } catch (e) {
@@ -1979,7 +1976,11 @@ function cloudflaredBin() {
 }
 
 function startTunnel() {
-  const child = spawn(cloudflaredBin(), ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${PORT}`], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(cloudflaredBin(), ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${PORT}`], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    // Avoid a flash console when the tray/hidden host starts the tunnel on Windows.
+    windowsHide: process.platform === 'win32',
+  });
   let shown = false;
   const scan = buf => {
     const m = !shown && String(buf).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
@@ -2005,6 +2006,10 @@ function startTunnel() {
 
 server.listen(PORT, HOST, async () => {
   console.log(`Cursor Remote Lite started on port ${PORT} (mode=${NETWORK_MODE}, bind=${HOST})`);
+  const pruned = pruneStaleDevices();
+  if (pruned.removed.length) {
+    console.log(`Pruned ${pruned.removed.length} stale device(s) (lastSeen > 90d): ${pruned.removed.join(', ')}`);
+  }
   console.log(`${listDevices().length} device(s) paired. Add another: npm run pair`);
   saveState({ networkMode: NETWORK_MODE, host: HOST, port: PORT, startedAt: Date.now() });
   startWatcher({

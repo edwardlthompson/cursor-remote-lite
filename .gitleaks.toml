@@ -1,0 +1,34 @@
+# Secret scan baseline for Cursor Remote Lite.
+title = "cursor-remote-lite"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "android-local-properties-sdk-dir"
+description = "Android sdk.dir / local.properties must not land in PRs"
+regex = '''(?i)sdk\.dir\s*='''
+path = '''(?i)(^|/)local\.properties$'''
+
+[[rules]]
+id = "adb-vendor-keys"
+description = "Private adbkey files must never be committed"
+regex = '''(?i)BEGIN\s+PRIVATE\s+KEY'''
+path = '''(?i)(^|/)(\.android/)?adbkey$'''
+
+[[rules]]
+id = "adb-vendor-keys-env"
+description = "ADB_VENDOR_KEYS assignments look like leaked device auth material"
+regex = '''(?i)\bADB_VENDOR_KEYS\s*='''
+
+[[rules]]
+id = "pairing-secret-env"
+description = "Pairing / device token env dumps must not be committed"
+regex = '''(?i)\b(PAIRING_SECRET|DEVICE_TOKEN|CURSOR_REMOTE_TOKEN)\s*=\s*\S+'''
+
+[allowlist]
+description = "Committed test fixtures (not live credentials)"
+paths = [
+  '''^test/fixtures/''',
+  '''^tests/fixtures/''',
+]

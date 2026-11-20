@@ -174,6 +174,28 @@ jobs:
             packaging/out/CursorRemote.msi
             packaging/out/CursorRemote-*-win-x64.zip
 
+  ovsx:
+    needs: [vsix]
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: CursorRemote-vsix
+          path: dist
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          test -f dist/cursor-remote-lite.vsix
+          if [ -z "$OVSX_PAT" ]; then
+            echo "OVSX_PAT not set — skipping Open VSX publish (GitHub Release still ships the VSIX)."
+            exit 0
+          fi
+          npx --yes ovsx publish dist/cursor-remote-lite.vsix -p "$OVSX_PAT"
+
   release:
     needs: [apk, windows, linux, vsix]
     runs-on: ubuntu-latest

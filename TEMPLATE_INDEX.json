@@ -1,0 +1,48 @@
+{
+  "template_version": "1.13.1",
+  "entry_points": {
+    "agents": "AGENTS.md",
+    "board": "BUILD_PLAN.md",
+    "gaps": "docs/GAP_LIST.md",
+    "batch_commands_help": "docs/help/BATCH_COMMANDS.md",
+    "argus": "docs/ARGUS_REMOTE.md",
+    "readme": "README.md"
+  },
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "purpose": "Agent router + project card",
+      "read_when": "session_start",
+      "update_when": "milestone_boundary",
+      "owner": "maintainer"
+    },
+    {
+      "path": "BUILD_PLAN.md",
+      "purpose": "Live sprint board with Argus marker lanes",
+      "read_when": "session_start",
+      "update_when": "each_task",
+      "owner": "maintainer"
+    },
+    {
+      "path": "docs/GAP_LIST.md",
+      "purpose": "Fork vs upstream + template gaps + Argus surface",
+      "read_when": "ideas_or_upgrade",
+      "update_when": "template_bump",
+      "owner": "maintainer"
+    },
+    {
+      "path": "argus.contract.json",
+      "purpose": "Argus contract_version 2 + required_files",
+      "read_when": "argus_scan",
+      "update_when": "template_bump",
+      "owner": "maintainer"
+    },
+    {
+      "path": "argus.remote.json",
+      "purpose": "Argus remote console off-switch",
+      "read_when": "argus_scan",
+      "update_when": "ops",
+      "owner": "maintainer"
+    }
+  ]
+}

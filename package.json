@@ -1,6 +1,6 @@
 {
   "name": "cursor-remote-lite",
-  "version": "1.9.7",
+  "version": "1.10.0",
   "description": "Use your desktop Cursor from your phone: chat with the Agent, approve steps, switch windows/modes/models. Free and self-hosted.",
   "type": "module",
   "main": "server.mjs",
@@ -16,6 +16,9 @@
     "2fa": "node twofa.mjs",
     "telegram": "node telegram.mjs",
     "win": "node win-run.mjs",
+    "win:hidden": "node win-run.mjs --hidden",
+    "sync-ui": "node scripts/sync-ui.mjs",
+    "sprint-status": "node scripts/build-sprint-status.mjs",
     "linux": "node linux-run.mjs",
     "dist:win": "powershell -ExecutionPolicy Bypass -File .\\packaging\\windows\\build.ps1",
     "dist:linux": "bash ./packaging/linux/build.sh",
@@ -24,6 +27,10 @@
     "ext:publish:ovsx": "npm --prefix extension run publish:ovsx",
     "test": "node --test test/*.test.mjs",
     "test:fixtures": "node --test test/*.test.mjs",
+    "validate": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\validate-bootstrap.ps1",
+    "validate:quick": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\validate-bootstrap.ps1 -Quick",
+    "agent-run": "python scripts/agent-run.py",
+    "health": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\project-health.ps1",
     "reset": "node -e \"const d=require('os').homedir()+'/.cursor-remote-lite/';for(const f of ['url-key','devices.json','pairing.json','totp.json','config.json','state.json'])require('fs').rmSync(d+f,{force:true});console.log('Reset complete: re-pair all devices; two-factor is off')\""
   },
   "engines": {

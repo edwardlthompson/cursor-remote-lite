@@ -92,6 +92,29 @@ export function removeDevice(id) {
   return list.some(d => d.id === id);
 }
 
+/** Pure helper: split devices into kept vs stale ids. */
+export function partitionStaleDevices(list, maxAgeMs, now = Date.now()) {
+  const kept = [];
+  const removed = [];
+  for (const d of list || []) {
+    const seen = Number(d.lastSeen || d.created || 0);
+    if (seen && now - seen > maxAgeMs) removed.push(d.id);
+    else kept.push(d);
+  }
+  return { kept, removed };
+}
+
+/**
+ * Drop devices that have not been seen within maxAgeMs (default 90 days).
+ * Re-pairing creates a new id; old rows linger until pruned.
+ * @returns {{ removed: string[], kept: number }}
+ */
+export function pruneStaleDevices(maxAgeMs = 90 * 24 * 60 * 60 * 1000, now = Date.now()) {
+  const { kept, removed } = partitionStaleDevices(listDevices(), maxAgeMs, now);
+  if (removed.length) saveDevices(kept);
+  return { removed, kept: kept.length };
+}
+
 /* ---------- TOTP (RFC 6238) ---------- */
 
 const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';

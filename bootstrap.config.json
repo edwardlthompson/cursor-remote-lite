@@ -26,5 +26,10 @@
     "preflight": false,
     "post_sync_adapters": false,
     "post_checklist": false
+  },
+  "argus": {
+    "remote": true,
+    "contract": true,
+    "rules_manifest": true
   }
 }

@@ -20,9 +20,9 @@ Walk away from the desk. The laptop stays home — plugged in, Cursor still runn
 
 ## The pitch in one screen
 
-<p align="center"><img src="docs/en/ui-tablet-landscape.png" width="780" alt="Tablet landscape: Chat | Dual pane | Files | Screen — chat left, BUILD_PLAN.md preview right, editor tabs synced with Cursor"></p>
+<p align="center"><img src="docs/en/ui-tablet-dualpane.gif" width="780" alt="Tablet landscape dual pane: chat beside Cursor editors, tabs synced"></p>
 
-<p align="center"><sub><b>Tablet landscape</b> — <b>Chat | Dual pane | Files | Screen</b>. Dual pane puts the Agent chat beside live Cursor editors (tabs, Open…, Markdown Preview / Source). Compact <b>Stop</b> on the running banner. Usage bar above the composer. Finish alerts hit the shade (and OpenShouter) when the prompt completes.</sub></p>
+<p align="center"><sub><b>Tablet landscape</b> — <b>Chat | Dual pane | Files | Screen</b>. Dual pane puts the Agent chat beside live Cursor editors (tabs, Open…, Markdown Preview / Source). Compact <b>Stop</b> on the running banner. Composer collapses so the columns act as a live monitor; usage stays on a bottom dock. Finish alerts hit the shade (and OpenShouter) when the prompt completes. Still: <a href="docs/en/ui-tablet-landscape.png">PNG</a>.</sub></p>
 
 ## Screenshots
 
@@ -56,7 +56,7 @@ A tiny relay on your PC drives the **real** Cursor there. Your phone/tablet gets
 - **Get interrupted only when it matters** — heads-up **Finished** / **Needs OK** with sound; Continue / Reply / Approve / Skip / Stop from the shade. Built for apps like **OpenShouter** (timestamped alerts, not a silent ongoing listen).
 - **Work the editors remotely** — **Chat | Dual pane | Files | Screen**; Dual pane syncs Cursor tabs both ways; Open… + Markdown Preview for `BUILD_PLAN.md` and friends.
 - **Ship the review** — unified **git diffs**, Keep / Undo; clipboard push/pull; attach photos into the composer; drafts saved per window.
-- **See your budget** — Cursor **usage %** bar above the composer.
+- **See your budget** — Cursor **usage %** dock always visible at the bottom (composer expands on demand).
 - **Every window** — local, SSH remote, Agents; mode / model / reasoning anytime.
 - **Stay in control on two devices** — phone + tablet **control lock** (Take control); optional Telegram + Cursor extension.
 - **Your bits stay home** — Cloudflare tunnel, LAN, or localhost. Android without Google services; iPhone via Home Screen. Mainland China–friendly paths.
@@ -136,7 +136,7 @@ Full matrix: [`docs/GAP_LIST.md`](docs/GAP_LIST.md). Slash commands: type `/` �
 ### Why this fork feels like a product
 - **Dual pane workspace**: **Chat | Dual pane | Files | Screen** on landscape (any width). Draggable split; **editor tabs sync** with Cursor both ways; Open… (open editors + workspace typeahead); **Markdown Preview / Source** for `.md`.
 - **Finish alerts that actually shout**: Android heads-up **Finished** / **Needs OK** with sound and actions; timestamped posts for **OpenShouter**; DND-safe channels; delivery over WebSocket + SSE replay so a flaky tunnel doesn’t swallow “done”.
-- **Usage bar**: live Cursor included-usage % between History and the composer.
+- **Usage dock**: live Cursor included-usage % pinned at the bottom; History / New / message box expand from the chevron (collapsed by default in landscape).
 - **Composer drafts**: typed text persists per Cursor window across Chat / Dual / Files switches (cleared on Send).
 - **Diff review + clipboard**: unified git diff sheet; paste phone → Cursor; pull selection / last code block → phone.
 - **Multi-device lock**: phone + tablet won’t double-Approve; **Take control** (90s idle TTL).
@@ -301,12 +301,12 @@ powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0
 powercfg /setactive SCHEME_CURRENT
 ```
 
-**Preferred:** install **CursorRemote.exe** / MSI and use the tray (Start with Windows). Pair with `npm run pair` or tray → Pair over ADB.
+**Preferred (no console):** install **CursorRemote.exe** / MSI — WinForms tray (`WinExe`), `CreateNoWindow` + `win-run.mjs --hidden`, Start with Windows. Pair with `npm run pair` or tray → Pair over ADB. First extract may flash a brief console, then frees it so only the tray icon remains.
 
 **From source** (PowerShell outside Cursor’s terminal, which dies when Cursor restarts):
 
 1. `powershell -ExecutionPolicy Bypass -File .\start-cursor.ps1` — restarts Cursor with the debug port.
-2. `npm run public` — or rely on the tray host after a packaged install.
+2. Console-free host: `npm run win:hidden` (same as tray: quiet stdout, `windowsHide` on child processes). Foreground debug: `npm run public` / `npm run win` (these **keep** a console on purpose).
 
 ### Trade-offs
 
@@ -337,7 +337,9 @@ powercfg /setactive SCHEME_CURRENT
 | `npm run pair` | Pair a new device (shows a QR code) |
 | `npm run devices` | List paired devices; `npm run devices remove <id>` removes one |
 | `npm run 2fa` | Enable / re-bind Authenticator 2FA; `npm run 2fa off` disables it; `npm run 2fa status` shows status |
-| `npm run public` | Run in the foreground (public access + fixed address) |
+| `npm run public` | Run in the foreground (public access + fixed address; console stays open) |
+| `npm run win:hidden` | Windows host without a console (dev equivalent of the tray EXE) |
+| `npm run sync-ui` | Push `app/` to GitHub Pages, wait for CDN, reload phone/tablet (WS + ADB) |
 | `npm start` | Run in the foreground (LAN only) |
 | `./service.sh status / logs / uninstall` | Background service status / logs / uninstall |
 | `npm run reset` | Clear all pairings, 2FA and configuration (you'll need to pair again afterwards) |

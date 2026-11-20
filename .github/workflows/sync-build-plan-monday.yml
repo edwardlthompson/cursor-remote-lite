@@ -1,0 +1,58 @@
+name: Sync BUILD_PLAN (Monday)
+
+# Child-scoped Monday cron: open PRs + GAP_LIST B → BUILD_PLAN markers.
+# Does not pull the parent check-*.sh farm.
+
+on:
+  schedule:
+    - cron: "15 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: sync-build-plan-monday
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync open PRs + template gaps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync open PRs block
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/lib/sync_open_prs_build_plan.py --root . --apply
+
+      - name: Sync template gaps block
+        run: python3 scripts/lib/sync_template_gaps_build_plan.py --root . --apply
+
+      - name: Commit and push if changed
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if git diff --quiet -- BUILD_PLAN.md; then
+            echo "No BUILD_PLAN sync changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BUILD_PLAN.md
+          git commit -m "chore(build-plan): Monday sync open PRs and template gaps"
+          if git push origin "HEAD:${DEFAULT_BRANCH:-main}"; then
+            exit 0
+          fi
+          echo "Push rejected; retry once after pull --rebase"
+          git pull --rebase origin "${DEFAULT_BRANCH:-main}"
+          git push origin "HEAD:${DEFAULT_BRANCH:-main}"

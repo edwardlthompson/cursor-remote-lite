@@ -27,13 +27,15 @@
   [hidden] { display: none !important; }
 
   header { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #252526; border-bottom: 1px solid #333; min-width: 0; }
-  #dot { width: 9px; height: 9px; border-radius: 50%; background: #c33; flex: none; }
-  #dot.ok { background: #3c3; }
-  #title { flex: 1; min-width: 0; max-width: 42%; display: flex; align-items: center; gap: 4px; background: none; border: none; padding: 4px 2px; text-align: left; color: #ccc; font-size: 14px; }
-  #title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #title::after { content: "▾"; color: #888; flex: none; }
-  .seg { display: flex; flex: none; border: 1px solid #3c3c3c; border-radius: 8px; overflow: hidden; }
-  .seg button { border: none; border-radius: 0; padding: 5px 7px; background: #2d2d2d; font-size: 12.5px; }
+  #statusBell { position: relative; flex: none; width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; color: #bbb; background: transparent; border: none; border-radius: 8px; }
+  #statusBell:active { background: #333; }
+  #statusBell.ok { color: #6c6; }
+  #statusBell.bad { color: #f77; }
+  #statusBell .badge { position: absolute; top: 4px; right: 4px; min-width: 8px; height: 8px; border-radius: 8px; background: #c44; box-shadow: 0 0 0 2px #252526; display: none; }
+  #statusBell .badge.on { display: block; }
+  #statusBell .badge.err { background: #e55; min-width: 8px; }
+  .seg { display: flex; flex: 1; min-width: 0; border: 1px solid #3c3c3c; border-radius: 8px; overflow: hidden; justify-content: stretch; }
+  .seg button { border: none; border-radius: 0; padding: 5px 7px; background: #2d2d2d; font-size: 12.5px; flex: 1; }
   .seg button.on { background: #0e639c; }
   #menuBtn { flex: none; padding: 5px 10px; }
 
@@ -116,30 +118,35 @@
   #view.scroll #screen { touch-action: none; }
   #ripple { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 2px solid #4af; pointer-events: none; opacity: 0; transition: opacity .4s; }
 
-  /* composer */
+  /* composer + collapsible dock */
   footer { flex: none; background: #252526; border-top: 1px solid #333; padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   #presenceBar { display: none; align-items: center; gap: 8px; padding: 6px 8px; margin: 0 -2px; border-radius: 8px; background: #3a2f1a; border: 1px solid #6b5420; font-size: 12.5px; color: #f0d78c; }
   #presenceBar.show { display: flex; }
   #presenceBar button { flex: none; font-size: 12px; padding: 4px 10px; }
   /* Quick-prompt chips removed — use slash / recipes instead; frees footer space. */
   #quickPrompts { display: none !important; }
+  #composerPanel { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  body.composer-collapsed #composerPanel { display: none !important; }
   #chatTools { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
   #chatTools[hidden], .row.composer[hidden], #usageBar[hidden] { display: none !important; }
   #chatTools::-webkit-scrollbar { display: none; }
   #chatTools button { font-size: 12.5px; padding: 3px 10px; border-radius: 14px; flex: none; white-space: nowrap; }
   #chatTools #pickModel { flex: 0 1 auto; min-width: 84px; overflow: hidden; text-overflow: ellipsis; }
-  /* Cursor included-usage chip mirrored under Stop / History */
-  #usageBar { display: flex; align-items: center; gap: 10px; padding: 2px 2px 0; min-width: 0; }
+  #composerDock { display: flex; align-items: center; gap: 8px; min-width: 0; padding-top: 2px; }
+  #uiBuild { flex: none; font-size: 11px; color: #777; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; padding: 0 2px; }
+  #usageBar { display: flex; align-items: center; gap: 10px; padding: 0; min-width: 0; flex: 1; }
+  body.files-only #uiBuild { display: inline; }
   #usageBar .usageTrack { flex: 1; min-width: 0; height: 6px; border-radius: 3px; background: #333; overflow: hidden; }
   #usageBar .usageFill { height: 100%; width: 0%; border-radius: 3px; background: #3c9a5f; transition: width .25s ease, background .25s ease; }
   #usageBar.hot .usageFill { background: #c9a227; }
   #usageBar.crit .usageFill { background: #c44; }
   #usageLabel { flex: none; font-size: 12px; color: #aaa; font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; }
-  /* Message field on its own row so icons never crush the textarea on phones. */
+  #composerToggle { flex: none; width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; color: #bbb; border-radius: 8px; }
+  #composerToggle[aria-expanded="true"] { color: #9cc8ff; }
   .row.composer { display: flex; flex-direction: column; gap: 8px; min-width: 0; align-items: stretch; }
   .composer-actions { display: flex; gap: 8px; min-width: 0; align-items: center; }
   .composer-actions .spacer { flex: 1; min-width: 0; }
-  footer.locked .row, footer.locked #chatTools { opacity: 0.45; pointer-events: none; }
+  footer.locked #composerPanel { opacity: 0.45; pointer-events: none; }
   #diffView, #paneDiffBody { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 55dvh; overflow: auto; background: #1e1e1e; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
   #diffView .add, #paneDiffBody .add { color: #73c991; }
   #diffView .del, #paneDiffBody .del { color: #f14c4c; }
@@ -154,15 +161,22 @@
   @media (max-width: 520px) {
     #clipPush, #clipPull { display: none; }
   }
-  /* Files tab = reading only — no chat composer / History tools. */
-  body.files-only footer .row.composer,
-  body.files-only footer #chatTools,
-  body.files-only footer #usageBar,
+  /* Files tab = reading only — no chat composer / History tools. Dock stays for usage. */
+  body.files-only footer #composerPanel,
   body.files-only footer #presenceBar,
-  body.files-only footer #quickPrompts { display: none !important; }
-  body.files-only footer { padding: 4px 10px; gap: 0; border-top-color: #2a2a2a; }
-  #msg { font-size: 12px; color: #888; min-height: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #msg.err { color: #f77; }
+  body.files-only footer #quickPrompts,
+  body.files-only footer #composerToggle { display: none !important; }
+  body.files-only footer { padding: 4px 10px; gap: 4px; border-top-color: #2a2a2a; }
+  body.files-only #composerDock { padding-top: 0; }
+  /* Status lines live in the bell sheet — keep #msg off-layout for a11y fallback. */
+  #msg { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .statusLog { font-size: 12.5px; color: #aaa; max-height: 40vh; overflow-y: auto; margin: 0 0 10px; padding: 0 4px; }
+  .statusLog .sl { padding: 6px 0; border-bottom: 1px solid #333; }
+  .statusLog .sl.err { color: #f99; }
+  .statusLog .sl .when { color: #666; margin-right: 6px; font-variant-numeric: tabular-nums; }
+  .statusConn { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 8px; border-radius: 8px; background: #2a2a2a; font-size: 13px; }
+  .statusConn i { width: 9px; height: 9px; border-radius: 50%; background: #c33; flex: none; }
+  .statusConn.ok i { background: #3c3; }
 
   /* bottom sheet */
   #shade { position: fixed; inset: 0; z-index: 30; background: #0008; display: none; }
@@ -365,8 +379,11 @@
 </head>
 <body>
 <header>
-  <span id="dot"></span>
-  <button id="title"><span id="titleText">Connecting…</span></button>
+  <button type="button" id="statusBell" aria-label="Status and connection" title="Status">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+    <span class="badge" id="statusBadge"></span>
+  </button>
+  <span id="titleText" hidden>Connecting…</span>
   <div class="seg">
     <button id="tabChat" class="on">Chat</button>
     <button id="tabPane">Dual pane</button>
@@ -450,28 +467,36 @@
 <footer>
   <div id="presenceBar"><span id="presenceText"></span><button type="button" id="takeControl">Take control</button></div>
   <div id="quickPrompts" aria-label="Quick prompts"></div>
-  <div id="chatTools">
-    <button id="pickMode" hidden></button>
-    <button id="pickModel" hidden></button>
-    <button id="pickHistory">History</button>
-    <button id="newChat">+ New</button>
-  </div>
-  <div id="usageBar" hidden aria-label="Cursor usage">
-    <div class="usageTrack"><div class="usageFill" id="usageFill"></div></div>
-    <span id="usageLabel">Usage —</span>
-  </div>
-  <div class="row composer">
-    <textarea id="text" rows="1" placeholder="Message Cursor Agent…" enterkeyhint="send"></textarea>
-    <div class="composer-actions">
-      <button id="img" title="Attach image" aria-label="Attach image"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></button>
-      <input id="imgFile" type="file" accept="image/*" hidden>
-      <button id="clipPush" title="Paste phone clipboard into Cursor" aria-label="Paste clipboard to Cursor"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="3" width="10" height="4" rx="1"/><path d="M9 3v2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M12 11v6M9 14h6"/></svg></button>
-      <button id="clipPull" title="Copy selection or last code block from Cursor" aria-label="Copy from Cursor"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="1"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></button>
-      <button id="mic" title="Voice input" aria-label="Voice input"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-      <button id="send">Send</button>
+  <div id="composerPanel">
+    <div id="chatTools">
+      <button id="pickMode" hidden></button>
+      <button id="pickModel" hidden></button>
+      <button id="pickHistory">History</button>
+      <button id="newChat">+ New</button>
+    </div>
+    <div class="row composer">
+      <textarea id="text" rows="1" placeholder="Message Cursor Agent…" enterkeyhint="send"></textarea>
+      <div class="composer-actions">
+        <button id="img" title="Attach image" aria-label="Attach image"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></button>
+        <input id="imgFile" type="file" accept="image/*" hidden>
+        <button id="clipPush" title="Paste phone clipboard into Cursor" aria-label="Paste clipboard to Cursor"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="3" width="10" height="4" rx="1"/><path d="M9 3v2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M12 11v6M9 14h6"/></svg></button>
+        <button id="clipPull" title="Copy selection or last code block from Cursor" aria-label="Copy from Cursor"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="1"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></button>
+        <button id="mic" title="Voice input" aria-label="Voice input"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+        <button id="send">Send</button>
+      </div>
     </div>
   </div>
-  <div id="msg"></div>
+  <div id="composerDock">
+    <span id="uiBuild" title="App shell build">UI …</span>
+    <div id="usageBar" hidden aria-label="Cursor usage">
+      <div class="usageTrack"><div class="usageFill" id="usageFill"></div></div>
+      <span id="usageLabel">Usage —</span>
+    </div>
+    <button type="button" id="composerToggle" aria-expanded="true" aria-controls="composerPanel" title="Expand composer" aria-label="Expand composer">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 14 6-6 6 6"/></svg>
+    </button>
+  </div>
+  <div id="msg" aria-live="polite"></div>
 </footer>
 
 <div id="shade"></div>
@@ -499,7 +524,7 @@
 <script src="i18n.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const UI_BUILD = 30; // bump when shell layout must force-refresh on phones
+const UI_BUILD = 32; // bump when shell layout must force-refresh on phones
 const PRIMARY = /^(run|allow|accept|approve|keep|continue|build|yes|运行|允许|接受|继续)/i;
 const store = {
   get: k => localStorage.getItem('cr-' + k),
@@ -525,9 +550,124 @@ function fitViewport() {
 window.visualViewport?.addEventListener('resize', fitViewport);
 fitViewport();
 
+const STATUS_LOG_MAX = 30;
+const statusLog = [];
+let statusBadgeUntil = 0;
+let relayConnected = false;
+let winTitleCache = 'Connecting…';
+
+function setStatusBadge(on, err = false) {
+  const b = $('statusBadge');
+  if (!b) return;
+  b.classList.toggle('on', !!on);
+  b.classList.toggle('err', !!err);
+}
+
+function refreshStatusBell() {
+  const bell = $('statusBell');
+  if (!bell) return;
+  bell.classList.toggle('ok', relayConnected);
+  bell.classList.toggle('bad', !relayConnected);
+  bell.setAttribute('aria-label', relayConnected
+    ? ('Status · connected · ' + winTitleCache)
+    : 'Status · disconnected');
+}
+
+function forceReloadUi() {
+  status('Reloading UI…');
+  if (window.CursorRemoteApp?.clearCacheAndReload) {
+    window.CursorRemoteApp.clearCacheAndReload();
+    return;
+  }
+  Promise.resolve()
+    .then(() => caches?.keys?.() || [])
+    .then(keys => Promise.all((keys || []).map(k => caches.delete(k))))
+    .then(() => navigator.serviceWorker?.getRegistrations?.() || [])
+    .then(regs => Promise.all((regs || []).map(r => r.unregister())))
+    .finally(() => { location.href = location.pathname + '?crbust=' + Date.now(); });
+}
+
 function status(text, ok = true) {
-  $('msg').textContent = text;
+  const line = String(text || '').trim();
+  $('msg').textContent = line;
   $('msg').className = ok ? '' : 'err';
+  if (!line) return;
+  statusLog.unshift({ t: Date.now(), text: line, ok: !!ok });
+  if (statusLog.length > STATUS_LOG_MAX) statusLog.length = STATUS_LOG_MAX;
+  if (!ok) {
+    setStatusBadge(true, true);
+    statusBadgeUntil = Date.now() + 60000;
+  } else {
+    setStatusBadge(true, false);
+    statusBadgeUntil = Date.now() + 8000;
+  }
+  const until = statusBadgeUntil;
+  setTimeout(() => {
+    if (statusBadgeUntil === until && Date.now() >= until) setStatusBadge(false);
+  }, Math.max(0, until - Date.now()));
+}
+
+function clearStatusBadge() {
+  setStatusBadge(false);
+  statusBadgeUntil = 0;
+}
+
+function fmtStatusWhen(ts) {
+  try {
+    return new Date(ts).toLocaleTimeString(undefined, { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch { return ''; }
+}
+
+function showStatusSheet() {
+  clearStatusBadge();
+  const connClass = relayConnected ? 'statusConn ok' : 'statusConn';
+  const connLabel = relayConnected ? 'Connected · UI ' + UI_BUILD : 'Disconnected · UI ' + UI_BUILD;
+  const win = winTitleCache || '—';
+  const lines = statusLog.length
+    ? statusLog.map(e => `<div class="sl ${e.ok ? '' : 'err'}"><span class="when">${esc(fmtStatusWhen(e.t))}</span>${esc(e.text)}</div>`).join('')
+    : '<div class="hint">No recent status</div>';
+  openSheet('status', `<h3>Status</h3>
+    <div class="${connClass}"><i></i><span>${esc(connLabel)}</span></div>
+    <div class="hint" style="margin:0 4px 8px">Window: ${esc(win)}</div>
+    <button class="opt" data-act="switchWindow"><span class="lbl">Switch Cursor window</span></button>
+    <div class="statusLog">${lines}</div>`);
+}
+
+/* ---------- collapsible composer dock ---------- */
+const isLandscape = () => matchMedia('(orientation: landscape)').matches;
+
+function composerCollapsedPreferred() {
+  const v = store.get('composerCollapsed');
+  if (v === 'on') return true;
+  if (v === 'off') return false;
+  return isLandscape();
+}
+
+function setComposerCollapsed(collapsed, { persist = false } = {}) {
+  document.body.classList.toggle('composer-collapsed', !!collapsed);
+  const btn = $('composerToggle');
+  if (btn) {
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    btn.title = collapsed ? 'Expand composer' : 'Collapse composer';
+    btn.setAttribute('aria-label', btn.title);
+    btn.innerHTML = collapsed
+      ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 14 6-6 6 6"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 10 6 6 6-6"/></svg>';
+  }
+  if (persist) store.set('composerCollapsed', collapsed ? 'on' : 'off');
+}
+
+function expandComposer({ focus = false } = {}) {
+  setComposerCollapsed(false);
+  if (focus) queueMicrotask(() => $('text')?.focus());
+}
+
+function applyComposerDefaultFromOrientation() {
+  if (store.get('composerCollapsed') === 'on' || store.get('composerCollapsed') === 'off') {
+    setComposerCollapsed(store.get('composerCollapsed') === 'on');
+    return;
+  }
+  setComposerCollapsed(isLandscape());
 }
 
 function renderUsage(pct) {
@@ -763,7 +903,8 @@ function connect() {
   ws.onopen = () => ws.send(JSON.stringify({ t: 'auth', token: store.get('token') }));
   let rejected = false;
   ws.onclose = async () => {
-    $('dot').className = '';
+    relayConnected = false;
+    refreshStatusBell();
     if (!authed) {
       // boot() asks /api/me whether the device was removed or needs 2FA again.
       await sleep(rejected ? 0 : 2000);
@@ -783,7 +924,8 @@ function connect() {
       if (!m.ok) { rejected = true; return; }
       authed = true; failures = 0;
       ungate();
-      $('dot').className = 'ok';
+      relayConnected = true;
+      refreshStatusBell();
       status('Connected · UI ' + UI_BUILD);
       startRelayHeartbeat();
       send({ t: 'mode', mode });
@@ -812,7 +954,9 @@ function connect() {
       if (prev && prev !== m.id) saveDraft(prev);
       store.set('window', m.id);
       currentWindow = m.id;
-      $('titleText').textContent = winLabel(m.title).name;
+      winTitleCache = winLabel(m.title).name;
+      $('titleText').textContent = winTitleCache;
+      refreshStatusBell();
       loadDraft(m.id);
       send({ t: 'windows' });
     }
@@ -838,6 +982,7 @@ function connect() {
       }
     }
     else if (m.t === 'status') status(m.msg, m.ok);
+    else if (m.t === 'reloadUi') forceReloadUi();
   };
 }
 
@@ -921,7 +1066,10 @@ function showWindows() {
     <span class="tag">${KIND_TAG[w.kind] || ''}</span><span class="lbl">${esc(winLabel(w.title || w.id).name)}${winLabel(w.title || '').file ? `<span class="sub">${esc(winLabel(w.title).file)}</span>` : ''}</span></button>`).join('');
   openSheet('windows', `<h3>Switch Cursor window</h3>${rows || '<div class="hint">No windows found</div>'}`);
 }
-$('title').onclick = () => { send({ t: 'windows' }); showWindows(); };
+function requestSwitchWindow() {
+  send({ t: 'windows' });
+  showWindows();
+}
 
 const MENU_TITLE = { mode: 'Mode', model: 'Model', history: 'Chat history' };
 function showMenu(kind, items, max) {
@@ -938,7 +1086,6 @@ function showMenu(kind, items, max) {
 let changesCache = [];
 let changesActions = [];
 let lastDashChanged = -1;
-const isLandscape = () => matchMedia('(orientation: landscape)').matches;
 
 function showPaneFiles() {
   $('paneView').classList.remove('diffing');
@@ -1403,6 +1550,7 @@ function showMainMenu() {
     ? `<button class="opt" data-act="appUpdate"><span class="lbl">Update the Android app (v${esc(appVersion)} → v${esc(apkUpdate())})</span><span class="tag">New</span></button>`
     : `<button class="opt" data-act="appUpdate"><span class="lbl">Check for app update (now v${esc(appVersion)})</span></button>`;
   openSheet('main', `<h3>Menu</h3>
+    <button class="opt" data-act="switchWindow"><span class="lbl">Switch Cursor window<span class="sub">${esc(winTitleCache || '—')}</span></span></button>
     ${notifyItem}
     ${inApp && appVersion ? update : ''}
     ${inApp ? '<button class="opt" data-act="changeUrl"><span class="lbl">Change app address</span></button>'
@@ -1567,7 +1715,7 @@ function handleNotifAction(action, win) {
   if (!action) return;
   const go = () => {
     if (action === 'continue') send({ t: 'send', text: 'Continue', submit: true });
-    else if (action === 'reply') { $('text')?.focus(); status('Type your reply'); }
+    else if (action === 'reply') { expandComposer({ focus: true }); status('Type your reply'); }
     else if (action === 'approve') send({ t: 'click', item: 'g', n: 0 });
     else if (action === 'skip') send({ t: 'click', item: 'g', n: 1 });
     else if (action === 'stop') send({ t: 'stop' });
@@ -1679,7 +1827,8 @@ $('sheet').addEventListener('click', async e => {
   if (b.dataset.params) { status('Loading model parameters…'); return send({ t: 'params', model: b.dataset.params, label: b.dataset.plabel }); }
   if (b.dataset.section) { status('Applying…'); return send({ t: 'pickParam', model: b.dataset.model, label: b.dataset.plabel, section: b.dataset.section, value: b.dataset.value }); }
   const act = b.dataset.act;
-  if (act === 'install') showInstallHelp();
+  if (act === 'switchWindow') { closeSheet(); requestSwitchWindow(); }
+  else if (act === 'install') showInstallHelp();
   else if (act === 'browserInstall') { closeSheet(); installEvent?.prompt(); installEvent = null; }
   else if (act === 'copyAddress') {
     await navigator.clipboard?.writeText(appAddress()).then(() => status('Address copied'), () => status('Copy failed; note the address manually', false));
@@ -1732,17 +1881,7 @@ $('sheet').addEventListener('click', async e => {
   }
   else if (act === 'reloadUi') {
     closeSheet();
-    status('Reloading UI…');
-    if (window.CursorRemoteApp?.clearCacheAndReload) {
-      window.CursorRemoteApp.clearCacheAndReload();
-      return;
-    }
-    Promise.resolve()
-      .then(() => caches?.keys?.() || [])
-      .then(keys => Promise.all((keys || []).map(k => caches.delete(k))))
-      .then(() => navigator.serviceWorker?.getRegistrations?.() || [])
-      .then(regs => Promise.all((regs || []).map(r => r.unregister())))
-      .finally(() => { location.href = location.pathname + '?crbust=' + Date.now(); });
+    forceReloadUi();
   }
   else if (act === 'reconnect') { closeSheet(); ws?.close(); }
   else if (act === 'clipPush') { closeSheet(); $('clipPush').click(); }
@@ -2583,11 +2722,21 @@ $('mic').onclick = () => {
 };
 
 window.addEventListener('resize', () => { layoutStage(); applyQuality(); });
+matchMedia('(orientation: landscape)').addEventListener?.('change', () => applyComposerDefaultFromOrientation());
+$('statusBell').onclick = () => showStatusSheet();
+$('composerToggle').onclick = () => {
+  const next = !document.body.classList.contains('composer-collapsed');
+  setComposerCollapsed(next, { persist: true });
+};
+$('text').addEventListener('focus', () => expandComposer());
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 setCrop(crop);
 setMode(mode);
 loadDraft(store.get('window') || 'default');
+applyComposerDefaultFromOrientation();
+refreshStatusBell();
+if ($('uiBuild')) $('uiBuild').textContent = 'UI ' + UI_BUILD;
 boot();
 </script>
 </body>
