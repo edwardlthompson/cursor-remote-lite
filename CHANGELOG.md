@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.9.7
+
+- **Agent finished alerts**: detect modern Agents “Stop generation” / “Stop Ctrl+…” controls (and Running tail status) so done notifications fire when a prompt finishes.
+- **Reliable delivery**: also push done/waiting over the live WebSocket to Android (`postAlert`) so a stale Cloudflare URL cannot silence shouts; keep watching while any device is paired; SSE still replays `lastAlert` on reconnect (UI 27).
+- **Markdown Preview**: fix Files-pane rendering for `BUILD_PLAN.md` — stop `pre-wrap` from breaking HTML layout; strip HTML comments; relative links, task lists, tables (UI 26).
+
 ## 1.9.6
 
 - **DND-safe alert channels** (`*_v4`): Agent finished / waiting bypass Priority mode so tablet Do Not Disturb no longer hides test/done alerts from the shade (and OpenShouter).

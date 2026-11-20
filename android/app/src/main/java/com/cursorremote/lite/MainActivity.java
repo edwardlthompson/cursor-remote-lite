@@ -470,6 +470,23 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> NotifyService.postTestAlert(MainActivity.this));
         }
 
+        /** JSON: {title,body,kind,win} — used when the relay pushes Agent-finished over the live WebSocket. */
+        @JavascriptInterface
+        public void postAlert(String json) {
+            runOnUiThread(() -> {
+                try {
+                    JSONObject e = new JSONObject(json == null ? "{}" : json);
+                    NotifyService.postAlert(MainActivity.this,
+                            e.optString("title", "Cursor Remote"),
+                            e.optString("body", ""),
+                            e.optString("kind", "done"),
+                            e.optString("win", ""));
+                } catch (Exception ignored) {
+                    NotifyService.postTestAlert(MainActivity.this);
+                }
+            });
+        }
+
         // A notification tapped while the app was closed: the page asks for its window once it has connected.
         @JavascriptInterface
         public String takeOpenWin() {

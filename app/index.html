@@ -278,22 +278,32 @@
   #paneDiffBody .l { display: flex; white-space: pre; }
   #paneDiffBody .l i { flex: none; width: 3.6em; padding-right: 10px; text-align: right; color: #5a5a5a; font-style: normal; user-select: none; -webkit-user-select: none; }
   #paneDiffBody .l.hl { background: #264f7855; }
-  #paneDiffBody.md-preview { padding: 14px 16px 28px; font: 14.5px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #ddd; }
-  #paneDiffBody.md-preview h1, #paneDiffBody.md-preview h2, #paneDiffBody.md-preview h3 { color: #fff; margin: 1em 0 .45em; line-height: 1.3; }
+  /* Override code-pane monospace + pre-wrap — those make rendered markdown look broken. */
+  #paneDiffBody.md-preview { padding: 14px 16px 28px; font: 14.5px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #ddd; white-space: normal; overflow-wrap: break-word; }
+  #paneDiffBody.md-preview h1, #paneDiffBody.md-preview h2, #paneDiffBody.md-preview h3,
+  #paneDiffBody.md-preview h4, #paneDiffBody.md-preview h5, #paneDiffBody.md-preview h6 { color: #fff; margin: 1em 0 .45em; line-height: 1.3; font-weight: 650; }
   #paneDiffBody.md-preview h1 { font-size: 1.55em; border-bottom: 1px solid #333; padding-bottom: .25em; }
   #paneDiffBody.md-preview h2 { font-size: 1.3em; border-bottom: 1px solid #2a2a2a; padding-bottom: .2em; }
   #paneDiffBody.md-preview h3 { font-size: 1.12em; }
+  #paneDiffBody.md-preview h4 { font-size: 1.05em; }
   #paneDiffBody.md-preview p { margin: 0 0 .75em; }
   #paneDiffBody.md-preview ul, #paneDiffBody.md-preview ol { margin: 0 0 .75em; padding-left: 1.4em; }
   #paneDiffBody.md-preview li { margin: .25em 0; }
+  #paneDiffBody.md-preview li.md-task-item { list-style: none; margin-left: -1.1em; padding-left: 0; display: flex; gap: .45em; align-items: flex-start; }
+  #paneDiffBody.md-preview .md-task { flex: none; width: 1em; height: 1em; margin-top: .28em; border: 1.5px solid #888; border-radius: 3px; background: #1a1a1a; }
+  #paneDiffBody.md-preview .md-task.on { background: #3d8bfd; border-color: #3d8bfd; box-shadow: inset 0 0 0 1px #111; }
+  #paneDiffBody.md-preview .md-task.on::after { content: ""; display: block; width: .35em; height: .6em; margin: .05em 0 0 .28em; border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
   #paneDiffBody.md-preview code { font: 12.5px/1.45 ui-monospace, Menlo, monospace; background: #1e1e1e; padding: 1px 5px; border-radius: 4px; }
-  #paneDiffBody.md-preview pre { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 0 0 .85em; }
+  #paneDiffBody.md-preview pre { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 0 0 .85em; white-space: pre; }
   #paneDiffBody.md-preview pre code { background: none; padding: 0; }
   #paneDiffBody.md-preview blockquote { margin: 0 0 .75em; padding-left: 12px; border-left: 3px solid #555; color: #aaa; }
-  #paneDiffBody.md-preview a { color: #6cb6ff; }
-  #paneDiffBody.md-preview table { border-collapse: collapse; margin: 0 0 .85em; font-size: 13px; }
+  #paneDiffBody.md-preview a { color: #6cb6ff; text-decoration: none; }
+  #paneDiffBody.md-preview a:active, #paneDiffBody.md-preview a:hover { text-decoration: underline; }
+  #paneDiffBody.md-preview table { border-collapse: collapse; margin: 0 0 .85em; font-size: 13px; display: block; overflow-x: auto; }
   #paneDiffBody.md-preview th, #paneDiffBody.md-preview td { border: 1px solid #444; padding: 5px 8px; }
+  #paneDiffBody.md-preview th { background: #1a1a1a; }
   #paneDiffBody.md-preview hr { border: none; border-top: 1px solid #333; margin: 1em 0; }
+  #paneDiffBody.md-preview strong { color: #fff; font-weight: 650; }
   #paneDiff .pdAct { flex: none; display: none; flex-wrap: wrap; gap: 8px; }
   #paneDiff .pdAct.show { display: flex; }
   #paneDiff .pdAct button { flex: 1; min-width: 72px; padding: 8px 10px; }
@@ -482,7 +492,7 @@
 <script src="i18n.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const UI_BUILD = 25; // bump when shell layout must force-refresh on phones
+const UI_BUILD = 27; // bump when shell layout must force-refresh on phones
 const PRIMARY = /^(run|allow|accept|approve|keep|continue|build|yes|运行|允许|接受|继续)/i;
 const store = {
   get: k => localStorage.getItem('cr-' + k),
@@ -810,6 +820,16 @@ function connect() {
     else if (m.t === 'dash') renderDash(m);
     else if (m.t === 'clipboard') onClipboardPull(m);
     else if (m.t === 'usage') renderUsage(m.pct);
+    else if (m.t === 'notify') {
+      // Agent finished / waiting — post a local Android shade alert (OpenShouter) even if SSE is down.
+      if (window.CursorRemoteApp?.postAlert) {
+        window.CursorRemoteApp.postAlert(JSON.stringify({
+          kind: m.kind || 'done', win: m.win || '', title: m.title || 'Cursor Remote', body: m.body || '',
+        }));
+      } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try { new Notification(m.title || 'Cursor Remote', { body: m.body || '', tag: m.win || 'cursor-remote' }); } catch {}
+      }
+    }
     else if (m.t === 'status') status(m.msg, m.ok);
   };
 }
@@ -1615,6 +1635,13 @@ async function onPaneAction(e) {
   }
 }
 $('paneView').addEventListener('click', onPaneAction);
+$('paneDiffBody').addEventListener('click', e => {
+  const a = e.target.closest('a[data-md-path]');
+  if (!a || !$('paneDiffBody').classList.contains('md-preview')) return;
+  e.preventDefault();
+  const p = a.getAttribute('data-md-path');
+  if (p) openFile(p);
+});
 $('paneDiffBack').onclick = () => { showPaneFiles(); send({ t: 'changes' }); };
 
 $('sheet').addEventListener('click', async e => {
@@ -2007,12 +2034,25 @@ function isMarkdownFile(name) {
 
 /** Compact markdown → safe HTML for the Files pane Preview mode. */
 function renderMarkdown(src) {
-  const text = String(src || '').replace(/\r\n/g, '\n');
+  // Drop HTML comments (BUILD_PLAN sync markers) so they never show as &lt;!-- … --&gt;.
+  const text = String(src || '').replace(/\r\n/g, '\n').replace(/<!--[\s\S]*?-->/g, '');
   const fences = [];
+  const links = [];
   let s = text.replace(/```([\w-]*)\n?([\s\S]*?)```/g, (_, lang, code) => {
     const i = fences.length;
     fences.push(`<pre><code class="lang-${esc(lang || '')}">${esc(code.replace(/\n$/, ''))}</code></pre>`);
     return `\u0000FENCE${i}\u0000`;
+  });
+  // Links before esc/code so [`path`](rel) and [text](https://…) both work.
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, href) => {
+    const body = label.replace(/^`([\s\S]+)`$/, '$1');
+    const i = links.length;
+    if (/^https?:\/\//i.test(href)) {
+      links.push(`<a href="${esc(href)}" target="_blank" rel="noopener">${esc(body)}</a>`);
+    } else {
+      links.push(`<a href="#" data-md-path="${esc(href)}">${esc(body)}</a>`);
+    }
+    return `\u0000LINK${i}\u0000`;
   });
   s = esc(s);
   s = s.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>')
@@ -2026,11 +2066,30 @@ function renderMarkdown(src) {
     .replace(/`([^`\n]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
-    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  // Lists
+    .replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+  // GFM tables (simple pipe rows)
+  s = s.replace(/(?:^|\n)((?:\|.+\|\n)+)/g, block => {
+    const rows = block.trim().split('\n').filter(Boolean);
+    if (rows.length < 2 || !/^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(rows[1].trim())) return block;
+    const cells = (row) => row.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+    const head = cells(rows[0]);
+    const body = rows.slice(2).map(cells);
+    return '\n<table><thead><tr>' + head.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>'
+      + body.map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('')
+      + '</tbody></table>\n';
+  });
+  // Lists (incl. task checkboxes)
+  const listItem = (raw) => {
+    const task = /^\[([ xX])\]\s+([\s\S]*)$/.exec(raw);
+    if (task) {
+      const on = task[1] !== ' ' ? ' on' : '';
+      return `<li class="md-task-item"><span class="md-task${on}" aria-hidden="true"></span><span>${task[2]}</span></li>`;
+    }
+    return `<li>${raw}</li>`;
+  };
   s = s.replace(/(?:^|\n)((?:[\t ]*[-*+]\s+.+\n?)+)/g, block => {
     const items = block.trim().split('\n').map(l => l.replace(/^[\t ]*[-*+]\s+/, '')).filter(Boolean);
-    return '\n<ul>' + items.map(i => `<li>${i}</li>`).join('') + '</ul>\n';
+    return '\n<ul>' + items.map(listItem).join('') + '</ul>\n';
   });
   s = s.replace(/(?:^|\n)((?:[\t ]*\d+\.\s+.+\n?)+)/g, block => {
     const items = block.trim().split('\n').map(l => l.replace(/^[\t ]*\d+\.\s+/, '')).filter(Boolean);
@@ -2041,9 +2100,10 @@ function renderMarkdown(src) {
     const t = chunk.trim();
     if (!t) return '';
     if (/^<(h[1-6]|ul|ol|pre|blockquote|hr|table)\b/i.test(t)) return t;
-    if (t.includes('\u0000FENCE')) return t;
+    if (/^\u0000FENCE\d+\u0000$/.test(t)) return t;
     return `<p>${t.replace(/\n/g, '<br>')}</p>`;
   }).join('\n');
+  s = s.replace(/\u0000LINK(\d+)\u0000/g, (_, i) => links[Number(i)] || '');
   s = s.replace(/\u0000FENCE(\d+)\u0000/g, (_, i) => fences[Number(i)] || '');
   return s;
 }

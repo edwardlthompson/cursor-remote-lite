@@ -66,7 +66,9 @@ export const removeViewer = v => viewers.delete(v);
 export const listViewers = () => [...viewers];
 
 const watching = (deviceId, targetId) => [...viewers].some(v => v.deviceId === deviceId && v.visible && v.targetId === targetId);
-const wanted = () => streams.size > 0 || listDevices().some(d => d.push) || telegramEnabled();
+// Keep watching whenever any device is paired — Android uses SSE (often briefly reconnecting),
+// so we must record done→lastAlert even while no stream is open yet (replayed on connect).
+const wanted = () => streams.size > 0 || listDevices().length > 0 || telegramEnabled();
 
 /* ---------- delivery ---------- */
 
@@ -92,8 +94,17 @@ export async function deliver(event, onlyDevice = null) {
     // finish + test alerts always fire (with sound on Android), matching desktop Cursor's completion chime.
     if (onlyDevice ? d.id !== onlyDevice
       : (event.kind !== 'done' && event.kind !== 'test' && watching(d.id, event.win))) continue;
-    const payload = JSON.stringify(d.lang === 'zh' && zh ? { ...en, ...zh } : en);
+    const msg = d.lang === 'zh' && zh ? { ...en, ...zh } : en;
+    const payload = JSON.stringify(msg);
     for (const s of streams) if (s.deviceId === d.id) s.res.write(`data: ${payload}\n\n`);
+    // Android WebView keeps a WS session alive in the background — deliver there too so a stale
+    // Cloudflare tunnel URL in url.json cannot silence Agent-finished shouts (SSE-only path).
+    for (const v of listViewers()) {
+      if (v.deviceId === d.id && typeof v.emit === 'function') {
+        try { v.emit({ t: 'notify', kind: msg.kind, win: msg.win || '', title: msg.title, body: msg.body }); }
+        catch { /* ignore */ }
+      }
+    }
     if (!d.push) continue;
     try {
       await webpush.sendNotification(d.push, payload, { TTL: 3600, urgency: 'high' });

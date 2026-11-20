@@ -19,6 +19,14 @@ test('agents history pick forces refresh markers exist in server source', async 
   assert.match(src, /ensureAgentSidebar|agentSidebarChats|data-flat-index/);
 });
 
+test('busy/done watcher recognizes modern Agents Stop controls', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
+  assert.match(src, /Stop generation/);
+  assert.match(src, /agent-transcript-tail-status/);
+  assert.match(src, /codicon-debug-stop/);
+});
+
 test('status endpoint and network modes are wired', async () => {
   const fs = await import('node:fs');
   const src = fs.readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');

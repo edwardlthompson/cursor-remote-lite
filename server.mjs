@@ -318,7 +318,24 @@ function pageHelpers() {
     id: e.dataset.queueItemId,
     t: (e.dataset.queueItemQuery || e.innerText || '').trim().slice(0, 4000),
   }));
-  const isBusy = () => [...document.querySelectorAll('.composer-button-area .codicon-debug-stop, .send-with-mode .codicon-debug-stop')].some(vis);
+  // Older UI: codicon-debug-stop in the composer send cluster.
+  // Newer Agents UI: "Stop generation" / "Stop Ctrl+Shift+⌫" buttons, or a "Running …" tail status chip.
+  const isBusy = () => {
+    if ([...document.querySelectorAll('.composer-button-area .codicon-debug-stop, .send-with-mode .codicon-debug-stop')].some(vis)) {
+      return true;
+    }
+    if ([...document.querySelectorAll('button[aria-label]')].some(e => {
+      if (!vis(e)) return false;
+      const a = e.getAttribute('aria-label') || '';
+      return /^(Stop generation|Stop(\s|$| Ctrl))/i.test(a);
+    })) return true;
+    if ([...document.querySelectorAll('.agent-transcript-tail-status')].some(e => {
+      if (!vis(e)) return false;
+      const t = `${e.getAttribute('aria-label') || ''} ${e.innerText || ''}`;
+      return /\bRunning\b/i.test(t);
+    })) return true;
+    return false;
+  };
 
   // First call (no action) returns the row center to hover over; hover-only buttons appear after that.
   const queueTarget = (id, action) => {
@@ -527,8 +544,13 @@ function pageHelpers() {
 
   const stopTarget = () => {
     const icon = [...document.querySelectorAll('.composer-button-area .codicon-debug-stop, .send-with-mode .codicon-debug-stop')].find(vis);
-    if (!icon) return null;
-    return center(icon.closest('button, [role=button], .anysphere-icon-button') || icon);
+    if (icon) return center(icon.closest('button, [role=button], .anysphere-icon-button') || icon);
+    const btn = [...document.querySelectorAll('button[aria-label]')].find(e => {
+      if (!vis(e)) return false;
+      const a = e.getAttribute('aria-label') || '';
+      return /^(Stop generation|Stop(\s|$| Ctrl))/i.test(a);
+    });
+    return btn ? center(btn) : null;
   };
 
   const extract = () => {
