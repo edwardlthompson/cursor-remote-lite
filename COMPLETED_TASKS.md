@@ -2,6 +2,13 @@
 
 Archived from `BUILD_PLAN.md` via `/cleanup`. Newest sections first.
 
+## Hotfix 1.10.1 — pairing wipe (2026-11-19)
+
+- **Symptom:** devices paired and looked good, then bounced to the pairing screen.
+- **Cause:** Android `WebStorage.deleteAllData()` inside `clearUi` / native `clearCacheAndReload`, also triggered by WS `reloadUi` after `sync-ui` / `/api/ui/reload`.
+- **Fix:** stop wiping WebStorage; UI 33 `forceReloadUi` clears caches only; Windows packaging includes `sync-app.mjs`.
+- **Operator note:** pre-1.10.1 APKs still wipe on ADB `clearUi` — avoid that after pair until this APK is installed.
+
 ## Parked leftovers unparked (2026-11-19)
 
 - ✅ [AGENT] **T4** Product `PARALLEL_AGENT_SCOPES.md` + `npm run sprint-status` (`scripts/build-sprint-status.mjs`)

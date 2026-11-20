@@ -45,7 +45,7 @@ Copy-Item -Recurse -Force (Join-Path $NodeExtracted '*') (Join-Path $Payload 'no
 # --- App files ---
 $copyFiles = @(
   'server.mjs', 'auth.mjs', 'devices.mjs', 'files.mjs', 'notify.mjs', 'setup.mjs', 'twofa.mjs',
-  'adb-pair.mjs', 'win-run.mjs', 'headless.mjs', 'telegram.mjs', 'presence.mjs',
+  'adb-pair.mjs', 'win-run.mjs', 'headless.mjs', 'telegram.mjs', 'presence.mjs', 'sync-app.mjs',
   'package.json', 'package-lock.json',
   'start-cursor.ps1', 'setup-windows.ps1', 'LICENSE', 'README.md', 'README.en.md'
 )

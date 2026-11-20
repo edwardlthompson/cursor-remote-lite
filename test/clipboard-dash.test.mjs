@@ -59,7 +59,7 @@ test('image attach uses file input + modern preview selectors', () => {
   assert.match(app, /id="composerPanel"/);
   assert.match(app, /id="uiBuild"/);
   assert.match(app, /composer-collapsed/);
-  assert.match(app, /UI_BUILD = 32/);
+  assert.match(app, /UI_BUILD = 33/);
   assert.match(app, /forceReloadUi|reloadUi/);
   assert.match(server, /api\/ui\/reload/);
   assert.match(server, /broadcastReloadUi|reloadUi/);

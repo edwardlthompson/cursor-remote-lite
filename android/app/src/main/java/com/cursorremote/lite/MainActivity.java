@@ -22,7 +22,6 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
-import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -282,12 +281,13 @@ public class MainActivity extends Activity {
 
     /**
      * Clear HTTP cache + unregister service workers, then hard-reload Pages.
+     * Do NOT wipe WebStorage — that deletes localStorage pair token/key and drops devices
+     * back to the pairing screen (also triggered by WS reloadUi / APK upgrade clear).
      * adb: am start -n com.cursorremote.lite/.MainActivity --ez clearUi true
      */
     private void clearUiCacheAndReload() {
         web.clearCache(true);
         web.clearHistory();
-        try { WebStorage.getInstance().deleteAllData(); } catch (Exception ignored) {}
         prefs.edit().putBoolean("pendingUiClear", true).apply();
         String url = appUrl();
         if (url == null || url.isEmpty()) load();

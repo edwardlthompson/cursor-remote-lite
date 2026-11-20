@@ -524,7 +524,7 @@
 <script src="i18n.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const UI_BUILD = 32; // bump when shell layout must force-refresh on phones
+const UI_BUILD = 33; // bump when shell layout must force-refresh on phones
 const PRIMARY = /^(run|allow|accept|approve|keep|continue|build|yes|运行|允许|接受|继续)/i;
 const store = {
   get: k => localStorage.getItem('cr-' + k),
@@ -575,10 +575,8 @@ function refreshStatusBell() {
 
 function forceReloadUi() {
   status('Reloading UI…');
-  if (window.CursorRemoteApp?.clearCacheAndReload) {
-    window.CursorRemoteApp.clearCacheAndReload();
-    return;
-  }
+  // Keep localStorage (cr-token / cr-key). Native clearCacheAndReload used to wipe WebStorage
+  // and bounce paired devices back to the pairing screen after a WS reloadUi.
   Promise.resolve()
     .then(() => caches?.keys?.() || [])
     .then(keys => Promise.all((keys || []).map(k => caches.delete(k))))
