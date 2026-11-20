@@ -14,6 +14,7 @@ Child of [agent-project-bootstrap](https://github.com/edwardlthompson/agent-proj
 | `/verify` | Before PR/release: `npm test`, skim CHANGELOG |
 | `/build` | Work the next open `[AGENT]` row on BUILD_PLAN |
 | `/ship` | Commit (if asked), tag, GitHub Release all platforms |
+| `/cleanup` | Archive finished ✅ BUILD_PLAN rows → `COMPLETED_TASKS.md`; slim the live board |
 | `/ideas` | Rank next features from GAP_LIST (do not implement until you say so) |
 
 ## Building

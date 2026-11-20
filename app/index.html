@@ -499,7 +499,7 @@
 <script src="i18n.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const UI_BUILD = 28; // bump when shell layout must force-refresh on phones
+const UI_BUILD = 30; // bump when shell layout must force-refresh on phones
 const PRIMARY = /^(run|allow|accept|approve|keep|continue|build|yes|运行|允许|接受|继续)/i;
 const store = {
   get: k => localStorage.getItem('cr-' + k),
@@ -1575,7 +1575,13 @@ function handleNotifAction(action, win) {
   if (authed) go();
   else setTimeout(go, 800);
 }
+// When a new SW activates, hard-reload once so status "UI N" cannot stay stuck on an old shell.
 navigator.serviceWorker?.addEventListener('message', e => {
+  if (e.data?.type === 'cr-sw-updated' && !sessionStorage.getItem('crSwReloaded')) {
+    sessionStorage.setItem('crSwReloaded', '1');
+    location.reload();
+    return;
+  }
   openWin(e.data?.openWin);
   if (e.data?.notifAction) handleNotifAction(e.data.notifAction, e.data.openWin);
 });
@@ -1803,9 +1809,11 @@ $('tabScreen').onclick = () => setMode('screen');
 const list = $('list'), itemsEl = $('items');
 const cache = new Map();
 
+const isStopLabel = l => /^(stop(\s+generation)?(\s|$)|停止)/i.test(String(l || '').trim());
+
 function buttonsHtml(labels, item) {
   return labels.map((l, n) => {
-    const stop = /^(stop(\s+generation)?|停止)/i.test(l);
+    const stop = isStopLabel(l);
     const cls = stop ? 'stop-gen' : (PRIMARY.test(l) ? 'primary' : '');
     return `<button class="${cls}" data-item="${esc(item)}" data-n="${n}">${esc(l)}</button>`;
   }).join('');
@@ -1827,7 +1835,9 @@ function renderItem(it) {
   else el.textContent = it.t || '';
   if (it.b && it.k !== 'human') {
     // Drop file-name / Review pills that sometimes ride along after a turn.
-    const labels = it.b.filter(l => !/\.\w{1,12}$/.test(l) && !/^Review$/i.test(l));
+    // While busy, Stop is only on the queueBar "Agent is running" row.
+    let labels = it.b.filter(l => !/\.\w{1,12}$/.test(l) && !/^Review$/i.test(l));
+    if (lastChat?.busy) labels = labels.filter(l => !isStopLabel(l));
     if (labels.length) el.insertAdjacentHTML('beforeend', `<div class="btns">${buttonsHtml(labels, it.i)}</div>`);
   }
   return el;
@@ -1866,8 +1876,12 @@ function renderChat(chat) {
   const live = new Set(chat.items.map(it => it.i));
   for (const k of cache.keys()) if (!live.has(k)) cache.delete(k);
 
-  $('actionBar').innerHTML = buttonsHtml(chat.global, 'g');
-  $('actionBar').classList.toggle('show', chat.global.length > 0);
+  // While busy, Stop lives only on the compact "Agent is running" row — drop the duplicate actionBar Stop.
+  const globalBtns = chat.busy
+    ? (chat.global || []).filter(l => !isStopLabel(l))
+    : (chat.global || []);
+  $('actionBar').innerHTML = buttonsHtml(globalBtns, 'g');
+  $('actionBar').classList.toggle('show', globalBtns.length > 0);
   renderQueue(chat.busy, chat.queued || [], chat.subagents || [], chat.readonly, chat.changed);
   if (inPaneMode() && (chat?.changed || 0) !== lastDashChanged) {
     lastDashChanged = chat?.changed || 0;
@@ -1929,7 +1943,7 @@ function renderQueue(busy, queued, subs = [], readonly = false, changed = 0) {
     if (subsOpen) html += subs.map(n => `<div class="q"><span class="qt sa">${esc(n)}</span>`
       + `<button data-sub="${esc(n)}" data-part="open">View</button><button data-sub="${esc(n)}" data-part="stop">Stop</button></div>`).join('');
   }
-  if (busy && !readonly) html += `<div class="run"><i></i><span>${queued.length ? 'Agent is running; the messages below are sent in order when this turn ends' : 'Agent is running; new messages will be queued'}</span><button data-stop>Stop generation</button></div>`;
+  if (busy && !readonly) html += `<div class="run"><i></i><span>${queued.length ? 'Agent is running; the messages below are sent in order when this turn ends' : 'Agent is running; new messages will be queued'}</span><button data-stop>Stop</button></div>`;
   if (queued.length) {
     html += `<div class="qh">Queued: ${queued.length}</div>`;
     html += queued.map(q => `<div class="q"><span class="qt">${esc(q.t || '(empty)')}</span>`

@@ -1,5 +1,5 @@
 // Caches the app shell so the installed app opens instantly; live data (url.json, relay) always goes to the network.
-const CACHE = 'cursor-remote-v28';
+const CACHE = 'cursor-remote-v30';
 const SHELL = ['./', 'index.html', 'i18n.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -9,17 +9,23 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
     .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-    .then(() => self.clients.claim()));
+    .then(() => self.clients.claim())
+    .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+    .then(clients => clients.forEach(c => c.postMessage({ type: 'cr-sw-updated', cache: CACHE }))));
 });
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.endsWith('url.json')) return;
-  // Bypass HTTP cache — Android WebView otherwise keeps a stale index.html for days.
-  e.respondWith(fetch(e.request, { cache: 'no-store' })
+  // Never cache-control the SW script itself via this handler's put — and always prefer network.
+  // Some WebViews fail fetch(..., {cache:'no-store'}); fall back to a plain fetch before Cache Storage.
+  const network = () => fetch(e.request, { cache: 'no-store' }).catch(() => fetch(e.request));
+  e.respondWith(network()
     .then(res => {
-      const copy = res.clone();
-      caches.open(CACHE).then(c => c.put(e.request, copy));
+      if (res && res.ok && !url.pathname.endsWith('sw.js')) {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy));
+      }
       return res;
     })
     .catch(() => caches.match(e.request)));

@@ -1,7 +1,7 @@
 # Build Plan
 
 <!-- remaining-tally -->
-**Remaining:** AGENT 0 · AUTO 0 · HUMAN 1 · ADB 0 · **1 open** (+ backlog)
+**Remaining:** AGENT 0 · AUTO 0 · HUMAN 0 · ADB 0 · **0 open** (+ backlog)
 <!-- /remaining-tally -->
 
 Child of **[edwardlthompson/agent-project-bootstrap](https://github.com/edwardlthompson/agent-project-bootstrap)** (`1.13.1`).  
@@ -30,26 +30,6 @@ _No automated template-gap sync yet — see docs/GAP_LIST.md section B._
 
 ---
 
-## Sprint 1 — Dual pane = Cursor editors (picker + tabs + sync)
-
-Goal: **Chat | Dual pane | Files | Screen** — max space for chat/files; editors synced both ways.
-
-- ✅ [AGENT] CDP helpers + WS: editors / focus / close / open / suggest
-- ✅ [AGENT] Dual pane UI: tab strip, Open… typeahead, active-tab preview; phone↔Cursor sync
-- ✅ [AGENT] Tablet density: hide window-status strip + quick-prompt chips; draggable dual divider; **Files** full-pane tab
-- ✅ [AGENT] v1.9.2 — notify permission + SSE restart; composer drafts per window; UI 23
-- 🔲 [HUMAN] Allow notifications if prompted; ⋯ → test notification; draft text survives app switch
-
-### Ship criteria
-
-- [x] Open editors in Cursor appear as tabs in Dual/Files within ~2s  
-- [x] Tapping a tab focuses that editor in Cursor and shows preview  
-- [x] Closing a tab on mobile closes it in Cursor; closing in Cursor removes it on mobile  
-- [x] Open… suggests workspace files as you type; Open still uses Quick Open  
-- [x] `npm test` green  
-
----
-
 ## Backlog
 
 - 🔲 [AGENT] **Remote Windows + Linux control app** — plan a first-class remote client (not only phone/tablet WebView) that can drive Cursor on a Windows or Linux laptop over the existing relay/CDP path: install story, window attach, Dual/Files layout parity, offline/reconnect, and how it differs from the phone APK / Pages app. Capture architecture options (Electron / Tauri / native) before coding.
@@ -58,4 +38,7 @@ Goal: **Chat | Dual pane | Files | Screen** — max space for chat/files; editor
 
 ## Archive
 
-Shipped through **1.8.3**: tray, tablet dual-pane, clipboard, multi-device lock, diffs, Android Back/updates, APK signing. See `CHANGELOG.md`.
+| Sprint | Complete | Notes |
+|--------|----------|--------|
+| Sprint 1 (Dual pane) | 2026-11-19 | Full sprint closed — AGENT + HUMAN notify/OpenShouter QA → `COMPLETED_TASKS.md` |
+| through 1.8.3 | earlier | tray, tablet dual-pane, clipboard, multi-device lock, diffs, Android Back/updates, APK signing — see `CHANGELOG.md` |

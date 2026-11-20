@@ -22,6 +22,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -88,6 +89,24 @@ public class MainActivity extends Activity {
             }
 
             @Override
+            public void onPageFinished(WebView view, String url) {
+                if (!prefs.getBoolean("pendingUiClear", false)) return;
+                if (url == null || url.startsWith(SETUP) || url.startsWith("about:")) return;
+                prefs.edit().putBoolean("pendingUiClear", false).apply();
+                // Now that Pages origin is loaded, drop Cache Storage + SW, then hard-reload.
+                view.evaluateJavascript(
+                    "(async()=>{try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));"
+                        + "const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()));}"
+                        + "catch(e){} true;})()",
+                    ignored -> runOnUiThread(() -> {
+                        String base = appUrl();
+                        if (base == null || base.isEmpty()) return;
+                        String bust = base.split("#")[0] + (base.contains("?") ? "&" : "?") + "crbust=" + System.currentTimeMillis();
+                        view.loadUrl(bust);
+                    }));
+            }
+
+            @Override
             public void onReceivedError(WebView view, WebResourceRequest req, WebResourceError err) {
                 if (req.isForMainFrame()) view.loadUrl(SETUP + "?offline=1");
             }
@@ -100,19 +119,25 @@ public class MainActivity extends Activity {
 
         // Drop stale WebView / service-worker shells after an APK upgrade so Pages UI (e.g. Files tab) loads.
         String ver = BuildConfigVersion.name(this);
-        if (!ver.equals(prefs.getString("clearedCacheFor", ""))) {
-            web.clearCache(true);
-            web.clearHistory();
+        boolean versionCleared = !ver.equals(prefs.getString("clearedCacheFor", ""));
+        if (versionCleared) {
             prefs.edit().putString("clearedCacheFor", ver).apply();
         }
 
+        boolean clearUi = getIntent() != null && getIntent().getBooleanExtra("clearUi", false);
         if (!openPairLink(getIntent())) {
             String win = getIntent().getStringExtra("win");
             String action = getIntent().getStringExtra("notifAction");
             if (win != null) prefs.edit().putString("openWin", win).apply();
             if (action != null) prefs.edit().putString("notifAction", action).apply();
-            if (state != null) web.restoreState(state);
-            else load();
+            if (clearUi || versionCleared) {
+                // Must unregister the service worker — HTTP clearCache alone leaves a stuck shell (e.g. UI 24).
+                clearUiCacheAndReload();
+            } else if (state != null) {
+                web.restoreState(state);
+            } else {
+                load();
+            }
         }
         maybePostTestFromIntent(getIntent());
         // Migrate silent/DND-stuck channels once after APK upgrade.
@@ -233,6 +258,10 @@ public class MainActivity extends Activity {
         super.onNewIntent(intent);
         if (openPairLink(intent)) return;
         maybePostTestFromIntent(intent);
+        if (intent != null && intent.getBooleanExtra("clearUi", false)) {
+            clearUiCacheAndReload();
+            return;
+        }
         String win = intent.getStringExtra("win");
         String action = intent.getStringExtra("notifAction");
         if (win != null) web.evaluateJavascript("window.openWin && openWin(" + JSONObject.quote(win) + ")", null);
@@ -249,6 +278,20 @@ public class MainActivity extends Activity {
             NotifyService.postTestAlert(this);
             Toast.makeText(this, NotifyService.tr("已发送测试通知", "Test notification posted"), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    /**
+     * Clear HTTP cache + unregister service workers, then hard-reload Pages.
+     * adb: am start -n com.cursorremote.lite/.MainActivity --ez clearUi true
+     */
+    private void clearUiCacheAndReload() {
+        web.clearCache(true);
+        web.clearHistory();
+        try { WebStorage.getInstance().deleteAllData(); } catch (Exception ignored) {}
+        prefs.edit().putBoolean("pendingUiClear", true).apply();
+        String url = appUrl();
+        if (url == null || url.isEmpty()) load();
+        else web.loadUrl(url.split("#")[0] + (url.contains("?") ? "&" : "?") + "crbust=" + System.currentTimeMillis());
     }
 
     private boolean notificationsAllowed() {
@@ -527,13 +570,7 @@ public class MainActivity extends Activity {
         // Wipe WebView HTTP + SW caches then reload Pages (fixes stuck old UI shells).
         @JavascriptInterface
         public void clearCacheAndReload() {
-            runOnUiThread(() -> {
-                web.clearCache(true);
-                web.clearHistory();
-                String url = appUrl();
-                if (url.isEmpty()) load();
-                else web.loadUrl(url + (url.contains("?") ? "&" : "?") + "crbust=" + System.currentTimeMillis());
-            });
+            runOnUiThread(() -> MainActivity.this.clearUiCacheAndReload());
         }
     }
 }

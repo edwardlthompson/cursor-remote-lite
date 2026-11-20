@@ -33,7 +33,7 @@ Plan-only until `/upgrade` from the parent template. Tracked on `BUILD_PLAN.md` 
 
 | # | Gap | Status |
 |---|-----|--------|
-| P1 | **Editor tabs in Dual pane** — bidirectional tab + content sync; Open… typeahead | Sprint 1 (shipped; HUMAN QA) |
+| P1 | **Editor tabs in Dual pane** — bidirectional tab + content sync; Open… typeahead | Sprint 1 (closed) |
 | P2 | **File picker** — open BUILD_PLAN / Simple Browser / any workspace file via Quick Open | Sprint 1 |
 | P3 | Multi-tab strip UI when several editors open | Sprint 1 |
 | P4 | OVSX publish automation | Parked (needs `OVSX_PAT`) |

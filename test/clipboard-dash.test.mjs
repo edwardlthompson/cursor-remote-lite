@@ -47,8 +47,10 @@ test('image attach uses file input + modern preview selectors', () => {
   assert.match(server, /DOM\.setFileInputFiles/);
   assert.match(server, /IMAGE_ATTACH_COUNT/);
   assert.match(app, /imageMime/);
-  assert.match(sw, /cursor-remote-v24/);
+  assert.match(sw, /cursor-remote-v\d+/);
   assert.match(sw, /cache: 'no-store'/);
+  assert.match(app, /function renderMarkdown/);
+  assert.match(app, /white-space:\s*normal/);
   assert.match(app, /draftKey|saveDraft|loadDraft/);
   assert.match(app, /nativeNotifyAllowed|notificationsAllowed/);
   assert.match(app, /usageBar|renderUsage/);

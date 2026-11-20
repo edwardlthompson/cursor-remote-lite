@@ -6,15 +6,23 @@
 
 # Cursor Remote Lite
 
-**Leave your laptop behind and keep working.** Your computer stays on at home or at the office; with your **phone or tablet** you keep driving Cursor: give the Agent tasks, get notified when it finishes, answer questions, approve commands, review diffs, and keep or undo changed files — in local and SSH remote windows alike.
+### Your Cursor Agent. In your pocket. Still on *your* machine.
 
-**Free, MIT, self-hosted.** No license key, no cloud Agent relay. Works on Android (native APK, no Google services required), iPhone (Add to Home Screen), Windows / Linux / macOS for the PC side, plus optional Telegram and a Cursor/VS Code extension.
+Walk away from the desk. The laptop stays home — plugged in, Cursor still running. On the train, in a meeting, or from the couch, your **phone or tablet** is the remote: ship prompts, get shouted when a turn finishes, answer the Agent’s questions, tap Run / Allow, review diffs, Keep or Undo files. Local windows. SSH remotes. Agents. Same sessions you’d drive at the keyboard.
 
-> Fork of [Suchenl/cursor-remote-lite](https://github.com/Suchenl/cursor-remote-lite) (itself inspired by [len5ky/CursorRemote](https://github.com/len5ky/CursorRemote)). This fork stays free and adds tray packaging, tablet dashboard, clipboard bridge, multi-device lock, and richer alerts.
+**Free. MIT. Self-hosted.** No license key. No cloud Agent relay. Native **Android APK** (works without Google services), **iPhone** via Add to Home Screen, Windows tray EXE/MSI, Linux packages, optional Telegram + Cursor extension.
+
+> Fork of [Suchenl/cursor-remote-lite](https://github.com/Suchenl/cursor-remote-lite) (inspired by [len5ky/CursorRemote](https://github.com/len5ky/CursorRemote)). This fork stays free and ships the **tablet dual-pane workspace**, **editor sync**, **OpenShouter-ready finish alerts**, tray packaging, clipboard bridge, and multi-device lock.
 
 <p align="center"><img src="docs/en/quickstart.gif" width="300" alt="Demo: preview a file, switch windows, adjust model parameters, approve a command, queue a message while the Agent runs, handle changed files"></p>
 
-<p align="center"><sub>Demo: tap a file name to preview it → switch to an SSH window → raise the model's reasoning effort → approve the test run → expand the running subagents → a message sent while the Agent is busy is queued and goes out when the turn ends → keep / undo changed files one by one (undo asks first) (demo data)</sub></p>
+<p align="center"><sub>Phone demo: preview a file → switch windows → raise reasoning → approve a run → queue while busy → Keep / Undo changes.</sub></p>
+
+## The pitch in one screen
+
+<p align="center"><img src="docs/en/ui-tablet-landscape.png" width="780" alt="Tablet landscape: Chat | Dual pane | Files | Screen — chat left, BUILD_PLAN.md preview right, editor tabs synced with Cursor"></p>
+
+<p align="center"><sub><b>Tablet landscape</b> — <b>Chat | Dual pane | Files | Screen</b>. Dual pane puts the Agent chat beside live Cursor editors (tabs, Open…, Markdown Preview / Source). Compact <b>Stop</b> on the running banner. Usage bar above the composer. Finish alerts hit the shade (and OpenShouter) when the prompt completes.</sub></p>
 
 ## Screenshots
 
@@ -23,12 +31,6 @@
 | <img src="docs/en/ui-chat.png" width="190" alt="Chat"> | <img src="docs/en/ui-file.png" width="190" alt="File preview"> | <img src="docs/en/ui-windows.png" width="190" alt="Switch window"> | <img src="docs/en/ui-model.png" width="190" alt="Pick model"> |
 | **Model parameters** | **Running: subagents + queue** | **Changed files** | **Confirm risky actions** |
 | <img src="docs/en/ui-params.png" width="190" alt="Model parameters"> | <img src="docs/en/ui-running.png" width="190" alt="Running: subagents and queued messages"> | <img src="docs/en/ui-changes.png" width="190" alt="Changed files"> | <img src="docs/en/ui-confirm.png" width="190" alt="Confirmation"> |
-
-### Tablet landscape (this fork)
-
-<p align="center"><img src="docs/en/ui-tablet-landscape.png" width="720" alt="Samsung tablet landscape: Chat | Dual pane | Screen, status strip, quick prompts"></p>
-
-<p align="center"><sub><b>Note — Dual pane:</b> In <b>landscape</b> on any device (phone or tablet), the header shows <b>Chat | Dual pane | Screen</b>. Tap <b>Dual pane</b> to toggle a side-by-side layout (chat left, editors/changes right) plus a window status strip (idle / running / waiting). Portrait keeps Dual pane as a full-screen side view. The pane lists Agent changes, opens workspace files (e.g. <code>BUILD_PLAN.md</code>), and keeps editor tabs in sync with Cursor on the PC.</sub></p>
 
 ## Why I built this
 
@@ -48,15 +50,16 @@ Meanwhile the Agent finishes a turn and waits for you to check it; stops to wait
 
 ### What this project does
 
-A tiny relay on your computer drives the real Cursor running there, and your phone/tablet gets a mobile UI:
+A tiny relay on your PC drives the **real** Cursor there. Your phone/tablet gets a purpose-built UI — not a shrunk desktop:
 
-- Read the Agent conversation like a chat app; messages sent while it's busy are queued automatically.
-- **Heads-up notifications with sound** when a turn finishes or when Run/Allow is waiting — Approve / Skip / Stop / Continue / Reply from the notification.
-- Review **git diffs**, Keep / Undo per file; paste phone clipboard into Cursor or pull a selection / code block back.
-- **Dual pane layout**: **Chat | Dual pane | Files | Screen** — left / both (draggable split) / right / desktop Screen; editor tabs sync with Cursor; Open… lists open desktop files first.
-- Every window works: local, SSH remote, Agents; switch mode, model and reasoning effort anytime.
-- Optional **Telegram** (forum topics per window) and a free **Cursor extension** for setup/status.
-- Your code and chats stay on your computer; the phone reaches them over a Cloudflare tunnel (HTTPS), LAN, or localhost. Works on Android and iPhone, including networks in mainland China.
+- **Chat like a messenger** — bubbles, tools, thinking; queue messages while the Agent runs; one compact **Stop** on the running banner.
+- **Get interrupted only when it matters** — heads-up **Finished** / **Needs OK** with sound; Continue / Reply / Approve / Skip / Stop from the shade. Built for apps like **OpenShouter** (timestamped alerts, not a silent ongoing listen).
+- **Work the editors remotely** — **Chat | Dual pane | Files | Screen**; Dual pane syncs Cursor tabs both ways; Open… + Markdown Preview for `BUILD_PLAN.md` and friends.
+- **Ship the review** — unified **git diffs**, Keep / Undo; clipboard push/pull; attach photos into the composer; drafts saved per window.
+- **See your budget** — Cursor **usage %** bar above the composer.
+- **Every window** — local, SSH remote, Agents; mode / model / reasoning anytime.
+- **Stay in control on two devices** — phone + tablet **control lock** (Take control); optional Telegram + Cursor extension.
+- **Your bits stay home** — Cloudflare tunnel, LAN, or localhost. Android without Google services; iPhone via Home Screen. Mainland China–friendly paths.
 
 ### Why support both Android and iPhone
 
@@ -81,11 +84,12 @@ So this project provides both: an Android app that installs without Google servi
 |---|---|---|
 | Windows host | **System-tray EXE/MSI**, Start with Windows, keep-awake, ADB pair | Manual Node / scripts |
 | Linux packages | **deb + tar.gz** on Releases | Manual |
-| Dual pane | **Chat \| Dual pane \| Screen** toggle (any landscape device), status strip, editor tabs | Phone-first layout |
+| Dual pane | **Chat \| Dual pane \| Files \| Screen** — draggable split, **editor tabs synced** with Cursor, Markdown Preview | Phone-first layout |
 | Diffs | Unified **git diff** + Keep/Undo | Changed-file list / preview |
 | Clipboard | Phone ↔ Cursor **push/pull** | — |
 | Multi-device | **Control lock** + Take control | Shared session |
-| Android alerts | Heads-up **Finished / Needs OK** + sound; in-app GitHub update | SSE / basic |
+| Android alerts | Heads-up **Finished / Needs OK** + sound; OpenShouter-friendly timestamps; DND-safe channels; in-app APK update | SSE / basic |
+| Usage | Live **Usage %** bar from Cursor | — |
 | Agent ops | **BUILD_PLAN**, slash commands, gap list (bootstrap child) | README |
 
 Full matrix: [`docs/GAP_LIST.md`](docs/GAP_LIST.md). Slash commands: type `/` → see [`docs/help/BATCH_COMMANDS.md`](docs/help/BATCH_COMMANDS.md).
@@ -101,8 +105,8 @@ Full matrix: [`docs/GAP_LIST.md`](docs/GAP_LIST.md). Slash commands: type `/` �
 | Windows it controls | **All**: local, SSH, Agents | Agents only (Remote Control) | Mostly local | Whole desktop |
 | Where code / chats live | **Only on your PC** (tunnel to your phone) | Agent loop often in Cursor cloud | Your PC + LAN / Tailscale | Vendor servers |
 | Away-from-home access | Built-in Cloudflare tunnel + fixed Pages address | Built in | DIY Tailscale / Telegram | Built in |
-| Phone UX | Chat + screen + **diffs** + clipboard + **tablet dashboard** | Native Agents UI | Chat UI | Tiny desktop |
-| Done / waiting alerts | **Android heads-up + sound**; Web Push; Telegram actions | ✅ | Telegram | ❌ |
+| Phone UX | Chat + **Dual pane editors** + Files + Screen + diffs + clipboard | Native Agents UI | Chat UI | Tiny desktop |
+| Done / waiting alerts | **Android heads-up + sound** (shade / OpenShouter); Web Push; Telegram | ✅ | Telegram | ❌ |
 | Multi-device (phone + tablet) | **Control lock** per window | — | — | Shared desktop |
 | PC packaging | **Win tray EXE/MSI**, Linux deb, macOS service, Cursor VSIX | — | — | — |
 | Telegram | Optional, free, forum topics / window | — | Optional | — |
@@ -117,28 +121,29 @@ Full matrix: [`docs/GAP_LIST.md`](docs/GAP_LIST.md). Slash commands: type `/` �
 ## Features
 
 ### Core remote control
-- **Chat mode**: Agent conversations as a chat app (bubbles, tool cards, thinking); approval buttons appear on the phone when Cursor waits.
-- **File preview**: tap a blue file name or 📄 tool card for a full-screen preview (SSH files via passwordless `ssh` from your PC).
-- **Screen mode**: live view of the chat panel or whole window; tap, scroll, zoom, common keys.
-- **Multiple windows**: switch local / SSH / Agents from the title control.
+- **Chat mode**: Agent conversations as a chat app (bubbles, tool cards, thinking); approval buttons when Cursor waits.
+- **File preview**: tap a blue file name or 📄 tool card (SSH via passwordless `ssh` from your PC).
+- **Screen mode**: live view of the chat panel or whole window; tap, scroll, zoom, keys.
+- **Multiple windows**: local / SSH / Agents from the title control.
 - **Modes / models / history**: Agent / Plan / Ask, model picker, parameters (context, reasoning, Fast, MAX), History, New chat.
-- **Agent questions**: questionnaire cards (multiple choice / free text) with Skip / Submit; notifications include the question.
-- **Queue & sub-agents**: queue while busy (edit / send now / delete); list and stop sub-agents; stop the main Agent with confirmation.
-- **Changed files**: line add/del counts, Keep / Undo (with confirm on Undo), Keep All / Undo All when Cursor offers them.
-- **Images**: attach a photo/screenshot into Cursor’s composer (compressed on device).
-- **Voice input** (opt-in): Android system recognizer or browser speech API.
+- **Agent questions**: questionnaire cards with Skip / Submit; notifications include the question.
+- **Queue & sub-agents**: queue while busy; list/stop sub-agents; stop the main Agent (compact **Stop** on the running banner).
+- **Changed files**: line add/del, Keep / Undo (confirm on Undo), Keep All / Undo All when Cursor offers them.
+- **Images**: attach a photo/screenshot into Cursor’s composer.
+- **Voice input** (opt-in): Android recognizer or browser speech API.
 - **English / 中文**: UI + notification language under **⋯ → 语言 / Language**.
 
-### Away-faster (this fork)
-- **Notifications + sound**: Android heads-up channels for **Finished** and **Needs your OK**, with Continue / Reply / Approve / Skip / Stop actions; Web Push and Telegram too. Finished alerts fire even if that window is open on the phone.
-- **Quick prompts**: chips above the composer (Continue, Fix tests, …); long-press to delete, `+` to add; stored on the device.
-- **Diff review**: tap a changed file for a unified git diff, then Keep / Undo / prev-next.
-- **Clipboard bridge**: paste phone clipboard → Cursor composer; pull selection or last code block → phone.
-- **Multi-device lock**: phone + tablet won’t double-Approve; banner + **Take control** (90s idle TTL).
-- **Dual pane** (landscape, any width): toggle between Chat and Screen; chat + changed-files/diff side-by-side, editor tabs synced with Cursor, plus window status strip.
-- **Windows tray**: `CursorRemote.exe` / MSI runs in the system tray with Start with Windows, keep-awake, ADB pair, Quit (stops relay).
-- **Telegram** (optional): forum topic per Cursor window (`/sync`); waiting/done inline actions. See [docs/TELEGRAM.md](docs/TELEGRAM.md).
-- **Cursor / VS Code extension**: setup panel, status, network modes (tunnel / lan / localhost). See [docs/EXTENSION.md](docs/EXTENSION.md).
+### Why this fork feels like a product
+- **Dual pane workspace**: **Chat | Dual pane | Files | Screen** on landscape (any width). Draggable split; **editor tabs sync** with Cursor both ways; Open… (open editors + workspace typeahead); **Markdown Preview / Source** for `.md`.
+- **Finish alerts that actually shout**: Android heads-up **Finished** / **Needs OK** with sound and actions; timestamped posts for **OpenShouter**; DND-safe channels; delivery over WebSocket + SSE replay so a flaky tunnel doesn’t swallow “done”.
+- **Usage bar**: live Cursor included-usage % between History and the composer.
+- **Composer drafts**: typed text persists per Cursor window across Chat / Dual / Files switches (cleared on Send).
+- **Diff review + clipboard**: unified git diff sheet; paste phone → Cursor; pull selection / last code block → phone.
+- **Multi-device lock**: phone + tablet won’t double-Approve; **Take control** (90s idle TTL).
+- **Stay connected**: Android foreground keepalive + UI heartbeat; **⋯ → Reload app UI** when a stale shell sticks.
+- **Windows tray**: `CursorRemote.exe` / MSI — Start with Windows, keep-awake, ADB pair, Quit.
+- **Telegram** (optional) + **Cursor / VS Code extension** — [docs/TELEGRAM.md](docs/TELEGRAM.md), [docs/EXTENSION.md](docs/EXTENSION.md).
+- **Agent ops board**: `BUILD_PLAN.md`, slash recipes (`/tour` `/coach` `/verify` `/ship`), gap list — bootstrap child of agent-project-bootstrap.
 
 ### Trust & access
 - **Device pairing**: one-time QR / deep link; optional TOTP 2FA; hashed tokens only on the PC.
@@ -223,24 +228,24 @@ From now on, Cursor must always be started with the debugging port; just launch 
 
 ## Notifications
 
-**Goal:** when the Agent finishes a turn (or waits for Run/Allow), your phone shows a heads-up Android notification and plays a sound — similar to Cursor’s desktop popup + chime.
+**Goal:** when the Agent finishes a turn (or waits for Run/Allow), your phone **shouts** — heads-up banner + sound, same energy as Cursor’s desktop chime. Works with the shade and shout apps like **OpenShouter**.
 
 ### Turn it on (Android app)
 
 1. Open **Cursor Remote** → **⋯ → Turn on notifications** (allow the system permission if asked).
 2. Tap **⋯ → Send a test notification**. You should get a heads-up banner **and** a sound.
-3. Leave a quiet “Cursor Remote is listening…” notification in the shade (required so Android keeps the connection alive).
-4. **Samsung / Xiaomi / Huawei / OPPO:** allow the app to run in the background (unrestricted battery; “Auto-run” / “App launch” → manage manually → allow).
-5. In **Settings → Apps → Cursor Remote → Notifications**, confirm **Agent finished** and **Agent needs your OK** are on, sound is on, and importance is High / Alerting (not Silent).
+3. Leave the quiet “Cursor Remote is listening…” ongoing notification in the shade (keeps the process alive — it is *not* the shout).
+4. **Samsung / Xiaomi / Huawei / OPPO:** unrestricted battery / Auto-run / App launch → allow.
+5. In **Settings → Apps → Cursor Remote → Notifications**, confirm **Agent finished** and **Agent needs your OK** are High / Alerting with sound (not Silent). If OEMs locked an old channel silent, use **⋯ → Fix silent notifications**.
 
-We use the **system notification sound** (not Cursor’s proprietary desktop chime — that file isn’t redistributable). Pick any tone you like under those two channels.
+We use the **system notification sound** (Cursor’s proprietary desktop chime isn’t redistributable).
 
 ### When alerts fire
 
 | Event | What you get |
 |---|---|
-| **Finished** | Notification + sound whenever a turn ends (includes the start of the reply). Fires even if that window is open on the phone. |
-| **Waiting** | Notification + sound after ~10s on Run / Allow / Accept (auto-run flashes don’t count). Suppressed only for the window you’re actively viewing. |
+| **Finished** | Timestamped heads-up + sound when a prompt completes. Fires even if that window is open on the phone. Delivered over the live WebSocket (and SSE), so a stale tunnel URL doesn’t silence you. |
+| **Waiting** | Heads-up + sound after ~10s on Run / Allow / Accept. Suppressed only for the window you’re actively viewing. |
 
 | Phone | How notifications arrive | Things to note |
 |---|---|---|
@@ -352,7 +357,7 @@ powercfg /setactive SCHEME_CURRENT
 
 GitHub Actions is only used when this fork publishes a new release; nothing runs on your account for day-to-day use.
 
-**Not receiving notifications**: first use "Send a test notification" from the menu. If the test notification doesn't arrive: on Android, check the system notification permission and background activity permission; on iPhone, make sure you opened the app from the home screen icon. If the test notification arrives but Agent alerts don't: your computer may be asleep, or Cursor wasn't started with `./start-cursor.sh`.
+**Not receiving notifications**: first use **⋯ → Send a test notification**. If the test never arrives: Android notification permission + unrestricted battery; try **⋯ → Fix silent notifications**. If the test works but Agent-finished doesn’t: keep the quiet “listening” FGS, don’t let the PC sleep, and start Cursor with `./start-cursor.sh` / `start-cursor.ps1`. OpenShouter only shouts timestamped alerts — not the ongoing listen notification.
 
 **Doesn't work on a company network**: Cloudflare tunnels use port 443, which usually works; if even `trycloudflare.com` is blocked, you can only use `npm start` on the same LAN.
 
