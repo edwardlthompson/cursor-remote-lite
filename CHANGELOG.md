@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.10.1
+
+- **Pairing survives UI reload**: Android `clearUi` / native `clearCacheAndReload` no longer call `WebStorage.deleteAllData()` (that wiped `cr-token` / `cr-key` and bounced devices back to the pairing screen after a good connect). Phone `forceReloadUi` (UI 33) clears SW/HTTP caches only.
+- **Windows payload**: include `sync-app.mjs` in the EXE/MSI extract list so the tray relay starts after install (1.10.0 omitted it).
+- **Note for operators**: do not ADB `clearUi` on a pre-1.10.1 APK after pairing — it still wipes WebStorage. Prefer **⋯ → Reload app UI** once Pages is on UI 33+, or install this APK.
+
 ## 1.10.0
 
 - **Phone UI (31–32)**: collapsible composer for Dual pane monitor mode; usage + connection dock; status bell; compact Stop on the running banner; `npm run sync-ui` pushes Pages/`LocalAppData` and force-reloads Android WebViews.
