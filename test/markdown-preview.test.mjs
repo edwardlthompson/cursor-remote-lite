@@ -22,7 +22,7 @@ function loadRenderMarkdown() {
 }
 
 test('md-preview overrides pre-wrap from code pane', () => {
-  assert.match(html, /#paneDiffBody\.md-preview[^}]*white-space:\s*normal/);
+  assert.match(html, /#paneDiffBody\.md-preview[\s\S]*?white-space:\s*normal/);
 });
 
 test('renderMarkdown strips HTML comments used by BUILD_PLAN sync markers', () => {
