@@ -370,3 +370,9 @@ GitHub Actions is only used when this fork publishes a new release; nothing runs
 ## License
 
 MIT. Copyright notice for the original upstream author is retained in [LICENSE](LICENSE). This fork is maintained at [edwardlthompson/cursor-remote-lite](https://github.com/edwardlthompson/cursor-remote-lite).
+
+## What this is not
+
+- Not a hosted cloud IDE or SaaS relay — Cursor stays running on your own machine.
+- Not an official Cursor product or affiliated with Anysphere.
+- Not a replacement for a full desktop editor when doing large multi-file refactors.
