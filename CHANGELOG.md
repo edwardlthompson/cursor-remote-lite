@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.11.1
+
+- **Windows/Linux payload**: include `transcript.mjs` (and Linux `sync-app.mjs`) in the packaged relay so tray/deb installs start after 1.11.0's read-only transcript fallback.
+
 ## 1.11.0
 
 - **Quota rings (UI 36–38)**: concentric 5h / period remaining rings + expandable drawer; DOM usage scrape with Cursor Usage-chip fallback (chip % used → remaining).
