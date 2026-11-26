@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 import qrcode from 'qrcode-terminal';
-import { workspaces, workspaceForTitle, fileSize, readFile, readDiff, parseRef, searchFiles } from './files.mjs';
+import { workspaces, workspaceForTitle, fallbackWorkspaceTabs, fileSize, readFile, readDiff, parseRef, searchFiles } from './files.mjs';
+import { listTranscriptWindows, readTranscriptChat } from './transcript.mjs';
 import {
   DATA_DIR, encryptUrl, createPairing, pairingValid, consumePairing, listDevices, addDevice, findDevice, updateDevice,
   removeDevice, pruneStaleDevices, totpConfig, verifyTotp, needsTotp, saveState, readState, appBase,
@@ -97,19 +98,29 @@ function originAllowed(req) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 
+async function listCdpWindows() {
+  try {
+    const res = await fetch(`${CDP_URL}/json/list`);
+    const targets = await res.json();
+    return targets
+      .filter(t => t.type === 'page' && t.webSocketDebuggerUrl && /workbench/.test(t.url || ''))
+      .map(t => ({
+        id: t.id,
+        title: t.title,
+        ws: t.webSocketDebuggerUrl,
+        kind: t.title === 'Cursor Agents' ? 'agents' : /\[SSH: /.test(t.title || '') ? 'ssh' : 'local',
+      }));
+  } catch {
+    return [];
+  }
+}
+
 async function listWindows() {
-  const res = await fetch(`${CDP_URL}/json/list`).catch(() => {
-    throw new Error('Cannot reach Cursor: it was not started with start-cursor.sh / start-cursor.ps1 (debug port is off)');
-  });
-  const targets = await res.json();
-  return targets
-    .filter(t => t.type === 'page' && /workbench/.test(t.url))
-    .map(t => ({
-      id: t.id,
-      title: t.title,
-      ws: t.webSocketDebuggerUrl,
-      kind: t.title === 'Cursor Agents' ? 'agents' : /\[SSH: /.test(t.title) ? 'ssh' : 'local',
-    }));
+  const cdpWins = await listCdpWindows();
+  if (cdpWins.length) return cdpWins;
+  const localSessions = listTranscriptWindows();
+  if (localSessions.length) return localSessions;
+  throw new Error('Cannot reach Cursor: it was not started with start-cursor.sh / start-cursor.ps1 (debug port is off)');
 }
 
 class Cdp {
@@ -222,7 +233,8 @@ function pageHelpers() {
   const vis = e => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0; };
   const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const SKIP = /ui-collapsible-header|md-clickable-code|output-preview|codicon-find|widget-close|model-picker/;
-  const ACTION = /^(run|skip|allow|accept|reject|deny|approve|keep|undo|continue|stop|cancel|build|retry|yes|no\b|运行|跳过|允许|接受|拒绝|继续|停止|取消)/i;
+  // Word-bound English verbs so "Running …" / "Building…" status chips never match as Run/Build actions.
+  const ACTION = /^((run|skip|allow|accept|reject|deny|approve|keep|undo|continue|stop|cancel|build|retry|yes|no)\b|运行|跳过|允许|接受|拒绝|继续|停止|取消)/i;
   const BLOCK = new Set(['P', 'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'BLOCKQUOTE', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TD', 'TH', 'DIV']);
   const INLINE = new Set(['STRONG', 'B', 'EM', 'I', 'CODE', 'DEL']);
   const CODE_BLOCK = '.composer-code-block-container, .composer-message-codeblock, .ui-code-block, pre';
@@ -262,11 +274,14 @@ function pageHelpers() {
       // Inline file path chips are <code role="button"> — never treat as chat action buttons.
       if (b.matches('code, a, .md-inline-path-filename, .ui-markdown__inline-code, .ui-markdown__inline-path-filename')) return false;
       if (b.closest('code, pre, .ui-markdown__inline-code, .md-inline-path-filename')) return false;
+      // Tool / step / revert chrome — collapsible pills, not Agent approval actions.
+      if (b.closest('[data-testid="user-message-actions"], [data-testid="revert-button"], [data-testid="tool-group-collapsible"], [data-testid="worked-for-collapsible"], [data-testid="step-plan"], [data-testid="step-plan-chip"], [data-testid="agent-input-box"], [data-testid="cascade-system-message-toolbar"], [data-testid="changed-files-card"]')) return false;
       if (b.parentElement?.closest('button, [role=button]') && b.parentElement.closest('button, [role=button]') !== b) return false;
       return true;
     })
     .map(b => ({ el: b, label: ((b.innerText || '').trim() || b.getAttribute('aria-label') || b.title || '').split('\n')[0].slice(0, 30) }))
-    .filter(x => x.label && x.label !== 'Shell command options' && !/\.\w{1,12}$/.test(x.label) && !/^Review$/i.test(x.label)
+    .filter(x => x.label && x.label !== 'Shell command options' && !/\.\w{1,12}$/.test(x.label)
+      && !/^(Review|Undo to this point)$/i.test(x.label) && !/^Cancel\s*\(/i.test(x.label)
       && (!strict || ACTION.test(x.label)));
 
   const codeText = n => {
@@ -391,6 +406,8 @@ function pageHelpers() {
   };
   const isSyncedEditorTab = name => {
     if (!name) return false;
+    // Cursor 3.31+ Project chrome (Tasks / Library / PRs / Context) — not Dual-pane file tabs.
+    if (/^(Tasks|Library|Pull Requests|Context|Canvases)$/i.test(name)) return false;
     if (/^Changes$/i.test(name)) return true;
     if (/^(Simple Browser|Preview)/i.test(name)) return true;
     // File-like tabs (BUILD_PLAN.md, path/to/file.ts). Skip the chat-title tab in the strip.
@@ -623,7 +640,8 @@ function pageHelpers() {
     return show ? center(show) : null;
   };
   const agentSidebarChats = () => {
-    const skip = /^(New Chat|Automations|Customize|Projects|Pinned|Agents|Ctrl\+N)$/i;
+    // Skip chrome / section headers (Cursor 3.31: Library, Tasks, More, Invite, Worker Model, …).
+    const skip = /^(New Chat|New Agent|Automations|Customize|Projects|Pinned|Agents|Library|Tasks|More|Invite|Context|Pull Requests|Worker Model|Ctrl\+N)$/i;
     const items = [...document.querySelectorAll('.glass-sidebar-agent-list-container li.ui-sidebar-menu-item, [aria-label="Sidebar"] li.ui-sidebar-menu-item, [aria-label=Sidebar] li.ui-sidebar-menu-item')]
       .filter(vis)
       .map(el => {
@@ -733,7 +751,7 @@ function pageHelpers() {
 
   // Cheap per-window check for notifications: is the Agent running, and is it waiting on a button?
   // "Run in background" shows up on any command running longer than ~5 s; it is not a request for approval.
-  const WAIT = /^(?!.*(background|后台))(run|allow|accept|approve|continue|yes\b|运行|允许|接受|批准|继续)/i;
+  const WAIT = /^(?!.*(background|后台))((run|allow|accept|approve|continue|yes)\b|运行|允许|接受|批准|继续)/i;
   const agentState = () => {
     const panel = findPanel();
     if (!panel) return null;
@@ -744,7 +762,7 @@ function pageHelpers() {
       const labels = buttonsIn(el, false).map(x => x.label).filter(l => WAIT.test(l));
       if (labels.length) { waiting = `${el.dataset.flatIndex}:${labels.join('/')}`; waitingText = summary(el); }
     }
-    const global = buttonsIn(panel, true).filter(x => !x.el.closest('[data-flat-index]') && !inQn(x.el) && WAIT.test(x.label)).map(x => x.label);
+    const global = buttonsIn(panel, true).filter(x => !x.el.closest('[data-testid="user-message"], [data-testid="agent-response"], [data-flat-index]') && !inQn(x.el) && WAIT.test(x.label)).map(x => x.label);
     if (!waiting && global.length) { waiting = `g:${global.join('/')}`; waitingText = global.join(' / '); }
     const qs = questions();
     if (qs?.list.length) {
@@ -766,7 +784,7 @@ function pageHelpers() {
     }));
   };
 
-  // Cursor's composer status chip: aria-label "Usage 94%" (included quota).
+  // Cursor's composer status chip: aria-label "Usage 94%" (included quota used %).
   const usagePct = () => {
     const btn = [...document.querySelectorAll('button,[role=button]')].find(e => {
       const t = (e.getAttribute('aria-label') || e.innerText || '').trim();
@@ -775,6 +793,114 @@ function pageHelpers() {
     if (!btn) return null;
     const m = /Usage\s+(\d{1,3})%/i.exec(btn.getAttribute('aria-label') || btn.innerText || '');
     return m ? Number(m[1]) : null;
+  };
+
+  const usageChipTarget = () => {
+    const btn = [...document.querySelectorAll('button,[role=button]')].find(e => {
+      if (!vis(e)) return false;
+      const t = (e.getAttribute('aria-label') || e.innerText || '').trim();
+      return /^Usage\s+\d{1,3}%/i.test(t);
+    });
+    return btn ? center(btn) : null;
+  };
+
+  const viewUsageTarget = () => {
+    const el = [...document.querySelectorAll('[role="menu"] [role="menuitem"], [data-radix-menu-content] [role="menuitem"], button, [role="button"], a')]
+      .find(e => vis(e) && /View Usage/i.test((e.innerText || '').trim()));
+    return el ? center(el) : null;
+  };
+
+  // Scrape an open Cursor usage popover / dialog for multi-bucket remaining quotas.
+  // Rings use "% left"; Cursor's chip is "% used" and is converted when needed.
+  const usageQuotas = () => {
+    const pickPctLeft = (part) => {
+      if (!part) return null;
+      let m = /(\d{1,3})\s*%\s*left/i.exec(part);
+      if (m) return Number(m[1]);
+      m = /(\d{1,3})\s*%\s*used/i.exec(part);
+      if (m) return Math.max(0, 100 - Number(m[1]));
+      m = /(\d{1,3})\s*%/.exec(part);
+      if (m) return Math.max(0, 100 - Number(m[1]));
+      return null;
+    };
+    const pickReset = (part) => {
+      const m = /resets?(?:\s+in)?\s*([^\n]+)/i.exec(part || '');
+      return m ? m[1].trim().replace(/\s+/g, ' ').slice(0, 40) : null;
+    };
+    const parseLimits = (chunk) => {
+      const h5Idx = chunk.search(/5h\s*limit|5-hour|5\s*h\b/i);
+      const wkIdx = chunk.search(/Weekly\s*limit|weekly|7d|7-day|Included/i);
+      let d7Left = null, h5Left = null, reset7d = null, reset5h = null;
+      if (h5Idx >= 0) {
+        const h5Part = wkIdx > h5Idx ? chunk.slice(h5Idx, wkIdx) : chunk.slice(h5Idx);
+        const wkPart = wkIdx >= 0 && wkIdx < h5Idx
+          ? chunk.slice(wkIdx, h5Idx)
+          : (wkIdx > h5Idx ? chunk.slice(wkIdx) : '');
+        h5Left = pickPctLeft(h5Part);
+        reset5h = pickReset(h5Part) || '5h';
+        if (wkPart) {
+          d7Left = pickPctLeft(wkPart);
+          reset7d = pickReset(wkPart) || '7d';
+        }
+      }
+      if (d7Left == null) {
+        d7Left = pickPctLeft(chunk);
+        reset7d = pickReset(chunk) || reset7d;
+      }
+      if (d7Left == null && h5Left == null) return null;
+      return { d7Left, h5Left, reset7d, reset5h };
+    };
+
+    const cands = [...document.querySelectorAll('[role="menu"], [data-radix-menu-content], [data-radix-popper-content-wrapper], [role="dialog"], .monaco-hover, div')]
+      .filter(e => {
+        if (!vis(e)) return false;
+        const txt = e.innerText || '';
+        if (txt.length < 24 || txt.length > 2500) return false;
+        return /\d{1,3}\s*%/.test(txt) && /(%\s*left|%\s*used|included|on-?demand|5h|weekly|usage|resets?)/i.test(txt);
+      })
+      .sort((a, b) => (a.innerText || '').length - (b.innerText || '').length);
+    const box = cands[0];
+    if (!box) return null;
+    const text = (box.innerText || '').replace(/\r/g, '');
+
+    const headings = [
+      { id: 'included', label: 'Included', name: 'Included usage', re: /Included(?:\s+usage)?/i },
+      { id: 'ondemand', label: 'On-demand', name: 'On-demand usage', re: /On-?demand/i },
+      { id: 'premium', label: 'Premium', name: 'Premium models', re: /Premium/i },
+      { id: 'api', label: 'API', name: 'API usage', re: /\bAPI\s+usage\b/i },
+    ];
+    const products = [];
+    for (let i = 0; i < headings.length; i++) {
+      const h = headings[i];
+      const m = h.re.exec(text);
+      if (!m) continue;
+      const rest = text.slice(m.index + m[0].length);
+      let end = rest.length;
+      for (let j = 0; j < headings.length; j++) {
+        if (j === i) continue;
+        const sm = headings[j].re.exec(rest);
+        if (sm && sm.index < end) end = sm.index;
+      }
+      const lim = parseLimits(rest.slice(0, end));
+      if (!lim) continue;
+      products.push({
+        id: h.id, label: h.label, name: h.name, models: 'Cursor',
+        h5Left: lim.h5Left, d7Left: lim.d7Left,
+        h5Disabled: false, d7Disabled: false,
+        reset5h: lim.reset5h, reset7d: lim.reset7d || 'period',
+      });
+    }
+    if (!products.length) {
+      const lim = parseLimits(text);
+      if (!lim) return null;
+      products.push({
+        id: 'cursor', label: 'Cursor', name: 'Cursor usage', models: 'Composer / Agent',
+        h5Left: lim.h5Left, d7Left: lim.d7Left,
+        h5Disabled: false, d7Disabled: false,
+        reset5h: lim.reset5h, reset7d: lim.reset7d || 'period',
+      });
+    }
+    return { products };
   };
 
   // Selection in the editor, else the last visible code block, else last assistant text snippet.
@@ -796,10 +922,58 @@ function pageHelpers() {
 
   return { extract, locate, panelRect, control, menuItems, menuItem, quickOpenRows, agentState, queueTarget, stopTarget, focusQueueEdit,
     menuOpen, maxToggle, modelTarget, modelParams, paramTarget, subTarget, activeChatTab, tabTarget, hasComposer, filesState, fileTarget, questionTarget,
-    editorTabs, editorTabTarget, ensureAgentSidebar, agentSidebarVisible, clipboardPull, usagePct };
+    editorTabs, editorTabTarget, ensureAgentSidebar, agentSidebarVisible, clipboardPull, usagePct, usageChipTarget, viewUsageTarget, usageQuotas };
 }
 
 const helpersCall = call => `(${pageHelpers.toString()})().${call}`;
+
+let liveIdeUsage = null;
+let usageProbeInFlight = false;
+
+/** Cursor chip is "% used"; rings show "% left". */
+function usageFromChip(pctUsed) {
+  if (pctUsed == null || !Number.isFinite(Number(pctUsed))) return null;
+  const used = Math.max(0, Math.min(100, Math.round(Number(pctUsed))));
+  const left = Math.max(0, Math.min(100, 100 - used));
+  return {
+    mode: 'left',
+    approx: false,
+    source: 'chip',
+    updatedAt: new Date().toISOString(),
+    products: [{
+      id: 'cursor',
+      label: 'Cursor',
+      name: 'Included usage',
+      models: 'Composer / Agent',
+      h5Left: null,
+      d7Left: left,
+      h5Disabled: false,
+      d7Disabled: false,
+      reset7d: 'period',
+      note: `${used}% used · ring shows remaining`,
+    }],
+  };
+}
+
+function mapDomQuotas(raw) {
+  const list = raw?.products;
+  if (!Array.isArray(list) || !list.length) return null;
+  const products = list.map(p => ({
+    id: String(p.id || 'cursor'),
+    label: String(p.label || 'Cursor'),
+    name: String(p.name || p.label || 'Cursor usage'),
+    models: String(p.models || 'Cursor'),
+    h5Left: p.h5Left == null ? null : Math.max(0, Math.min(100, Math.round(Number(p.h5Left)))),
+    d7Left: p.d7Left == null ? null : Math.max(0, Math.min(100, Math.round(Number(p.d7Left)))),
+    h5Disabled: Boolean(p.h5Disabled),
+    d7Disabled: Boolean(p.d7Disabled),
+    reset5h: p.reset5h || null,
+    reset7d: p.reset7d || 'period',
+    note: p.note || '',
+  })).filter(p => p.d7Left != null || p.h5Left != null);
+  if (!products.length) return null;
+  return { mode: 'left', approx: false, source: 'dom', updatedAt: new Date().toISOString(), products };
+}
 
 function deviceName(id) {
   return listDevices().find(d => d.id === id)?.name || 'Device';
@@ -819,65 +993,115 @@ class Session {
     // The phone reports when the app goes to the background; notifications skip the window it is looking at.
     this.visible = true;
     this.cdp = null;
+    this.transcriptFile = null;
     this.viewport = { w: 1000, h: 800 };
-    this.screencast = { format: 'jpeg', quality: 60, maxWidth: 1280, maxHeight: 2400 };
     this.awaitingAck = null;
-    this.lastFrameAt = 0;
     this.lastHash = '';
     this.mode = 'chat';
     this.lastChat = '';
-    this.lastPanel = '';
     this.lastUsage = null;
-    this.idleTimer = setInterval(() => this.pollIfIdle(), 2000);
+    this.lastUsageJson = '';
+    this.wasBusy = false;
+    this.usageTimer = setInterval(() => this.pollUsage().catch(() => {}), 2000);
   }
 
-  async setMode(mode) {
-    this.mode = mode === 'screen' ? 'screen' : 'chat';
+  async setMode(_mode) {
+    // Screen view removed (P15) — relay always mirrors chat / Dual pane / Files.
+    this.mode = 'chat';
     clearInterval(this.chatTimer);
-    if (!this.cdp) return;
-    if (this.mode === 'chat') {
-      await this.cdp.send('Page.stopScreencast').catch(() => {});
-      this.lastChat = '';
-      this.chatTimer = setInterval(() => this.pollChat().catch(() => {}), 700);
-      await this.pollChat();
-    } else {
-      this.lastPanel = '';
-      await this.sendPanelRect();
-      await this.snapshot(true);
-      await this.startScreencast();
+    if (!this.cdp && !this.transcriptFile) return;
+    this.lastChat = '';
+    this.chatTimer = setInterval(() => this.pollChat().catch(() => {}), 700);
+    await this.pollChat();
+  }
+
+  async refreshLiveUsage({ force = false } = {}) {
+    if (!this.cdp || usageProbeInFlight) return null;
+    if (!force && liveIdeUsage && (Date.now() - liveIdeUsage.ts) < 15000) return liveIdeUsage.usage;
+    usageProbeInFlight = true;
+    try {
+      let raw = await this.cdp.evaluate(helpersCall('usageQuotas()')).catch(() => null);
+      if ((!raw || !raw.products?.length) && force) {
+        const pos = await this.cdp.evaluate(helpersCall('viewUsageTarget()')).catch(() => null)
+          || await this.cdp.evaluate(helpersCall('usageChipTarget()')).catch(() => null);
+        if (pos) {
+          await this.tapCss(pos.x, pos.y);
+          await new Promise(r => setTimeout(r, 450));
+          raw = await this.cdp.evaluate(helpersCall('usageQuotas()')).catch(() => null);
+          await this.key('Escape').catch(() => {});
+        }
+      }
+      let mapped = mapDomQuotas(raw);
+      if (!mapped) {
+        const pct = await this.cdp.evaluate(helpersCall('usagePct()')).catch(() => null);
+        mapped = usageFromChip(pct);
+      }
+      if (mapped) liveIdeUsage = { usage: mapped, ts: Date.now() };
+      return mapped;
+    } catch {
+      return null;
+    } finally {
+      usageProbeInFlight = false;
+      for (const v of listViewers()) {
+        if (typeof v.pollUsage === 'function') v.pollUsage().catch(() => {});
+      }
     }
   }
 
   async pollUsage() {
     if (!this.cdp) return;
-    const pct = await this.cdp.evaluate(helpersCall('usagePct()')).catch(() => null);
-    if (pct == null || pct === this.lastUsage) return;
-    this.lastUsage = pct;
-    this.emit({ t: 'usage', pct });
+    if (!usageProbeInFlight && (!liveIdeUsage || (Date.now() - liveIdeUsage.ts) > 15000)) {
+      this.refreshLiveUsage().catch(() => {});
+    }
+    let usage = liveIdeUsage?.usage?.products?.length ? liveIdeUsage.usage : null;
+    if (!usage) {
+      const pct = await this.cdp.evaluate(helpersCall('usagePct()')).catch(() => null);
+      usage = usageFromChip(pct);
+    }
+    if (!usage) return;
+    const activeVals = (usage.products || []).flatMap(p => [
+      p.h5Left != null && !p.h5Disabled ? p.h5Left : null,
+      p.d7Left != null && !p.d7Disabled ? p.d7Left : null,
+    ].filter(v => v != null));
+    const minLeft = activeVals.length ? Math.min(...activeVals) : null;
+    const json = JSON.stringify({ minLeft, usage });
+    if (json === this.lastUsageJson) return;
+    this.lastUsageJson = json;
+    this.lastUsage = minLeft;
+    this.emit({ t: 'usage', pct: minLeft, usage });
   }
 
   async pollChat() {
-    if (!this.cdp || this.polling) return;
+    if ((!this.cdp && !this.transcriptFile) || this.polling) return;
     this.polling = true;
     try {
-      const chat = await this.cdp.evaluate(helpersCall('extract()'));
+      // Auto-upgrade from read-only transcript fallback to live CDP :9222 within ~3 s.
+      if (!this.cdp && this.transcriptFile && (Date.now() - (this.lastCdpProbe || 0)) > 3000) {
+        this.lastCdpProbe = Date.now();
+        const liveWins = await listCdpWindows();
+        if (liveWins.length) {
+          this.polling = false;
+          await this.attach(liveWins[0].id);
+          this.emit({ t: 'status', ok: true, msg: 'Connected to live Cursor IDE (CDP :9222)' });
+          return;
+        }
+      }
+      const chat = this.cdp
+        ? await this.cdp.evaluate(helpersCall('extract()'))
+        : readTranscriptChat(this.transcriptFile);
+      const busyNow = Boolean(chat?.busy);
+      if (this.wasBusy && !busyNow && this.cdp) {
+        setTimeout(() => this.refreshLiveUsage({ force: true }).catch(() => {}), 800);
+      }
+      this.wasBusy = busyNow;
       const json = JSON.stringify(chat);
       if (json !== this.lastChat) {
         this.lastChat = json;
         this.emit({ t: 'chat', chat });
       }
-      await this.pollUsage();
+      if (this.cdp) await this.pollUsage();
     } finally {
       this.polling = false;
-    }
-  }
-
-  async sendPanelRect() {
-    const rect = await this.cdp.evaluate(helpersCall('panelRect()')).catch(() => null);
-    const json = JSON.stringify(rect);
-    if (json !== this.lastPanel) {
-      this.lastPanel = json;
-      this.emit({ t: 'panel', rect });
     }
   }
 
@@ -983,7 +1207,7 @@ class Session {
 
   async backToMain() {
     const pos = this.mainTab && await this.cdp.evaluate(helpersCall(`tabTarget(${JSON.stringify(this.mainTab)})`));
-    if (!pos) throw new Error('Cannot find the main chat tab; switch back manually in "Screen"');
+    if (!pos) throw new Error('Cannot find the main chat tab; switch back in Cursor');
     await this.tapCss(pos.x, pos.y);
     setTimeout(() => this.pollChat().catch(() => {}), 400);
   }
@@ -1003,6 +1227,20 @@ class Session {
 
   // Menus are read by opening them in Cursor, then closed again so the desktop UI is left as it was.
   async openMenu(kind) {
+    // Cursor 3.31+: Project coordinators stay in Agent mode — no Modes row / Shift+Tab cycling.
+    if (kind === 'mode') {
+      const modeCtl = await this.cdp.evaluate(helpersCall(`control('mode')`));
+      if (!modeCtl) {
+        this.emit({
+          t: 'menu',
+          kind,
+          items: [],
+          max: null,
+          note: 'Mode is locked on this chat (Project coordinators stay in Agent mode on Cursor 3.31+)',
+        });
+        return;
+      }
+    }
     // Agents window: history is the left sidebar list, not a composer History popup.
     if (kind === 'history') {
       const show = await this.cdp.evaluate(helpersCall('ensureAgentSidebar()'));
@@ -1039,7 +1277,10 @@ class Session {
     }
     const max = kind === 'model' ? await this.cdp.evaluate(helpersCall('maxToggle()?.on ?? null')) : null;
     await this.closeMenus();
-    this.emit({ t: 'menu', kind, items, max });
+    const note = kind === 'mode' && !items.length
+      ? 'No mode choices (Project coordinators stay in Agent mode on Cursor 3.31+)'
+      : null;
+    this.emit({ t: 'menu', kind, items, max, note });
   }
 
   async closeMenus() {
@@ -1333,6 +1574,18 @@ class Session {
     const wins = await listWindows();
     const win = wins.find(w => w.id === targetId) || wins[0];
     if (!win) throw new Error('No Cursor window found; make sure Cursor was started with --remote-debugging-port=9222');
+    if (win.kind === 'transcript') {
+      this.transcriptFile = win.file;
+      this.targetId = win.id;
+      this.winTitle = win.title;
+      this.emit({ t: 'attached', id: win.id, title: win.title, liveMode: false });
+      if (this.visible) {
+        presenceHeartbeat(win.id, this.deviceId, deviceName(this.deviceId));
+        broadcastPresence(win.id);
+      }
+      await this.setMode('chat');
+      return;
+    }
     const cdp = new Cdp(win.ws);
     await cdp.connect();
     this.cdp = cdp;
@@ -1344,20 +1597,21 @@ class Session {
         this.emit({ t: 'status', ok: false, msg: 'Lost connection to the Cursor window' });
       }
     };
-    cdp.on('Page.screencastFrame', p => this.onFrame(p));
     await cdp.send('Page.enable');
     await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
     await this.refreshViewport();
-    this.emit({ t: 'attached', id: win.id, title: win.title });
+    this.emit({ t: 'attached', id: win.id, title: win.title, liveMode: true });
     if (this.visible) {
       presenceHeartbeat(win.id, this.deviceId, deviceName(this.deviceId));
       broadcastPresence(win.id);
     }
-    await this.setMode(this.mode);
+    await this.setMode('chat');
+    setTimeout(() => this.refreshLiveUsage().catch(() => {}), 800);
   }
 
   detach() {
     clearInterval(this.chatTimer);
+    this.transcriptFile = null;
     const winId = this.targetId;
     if (winId) {
       presenceRelease(winId, this.deviceId);
@@ -1366,55 +1620,13 @@ class Session {
     if (this.cdp) {
       const cdp = this.cdp;
       this.cdp = null;
-      cdp.send('Page.stopScreencast').catch(() => {}).finally(() => cdp.close());
+      cdp.close();
     }
   }
 
   async refreshViewport() {
     const v = await this.cdp.evaluate('({ w: innerWidth, h: innerHeight })');
     if (v) this.viewport = v;
-  }
-
-  async startScreencast() {
-    await this.cdp.send('Page.startScreencast', { ...this.screencast, everyNthFrame: 1 });
-  }
-
-  onFrame({ data, metadata, sessionId }) {
-    this.lastFrameAt = Date.now();
-    if (metadata?.deviceWidth) this.viewport = { w: metadata.deviceWidth, h: metadata.deviceHeight };
-    this.sendFrame(data);
-    this.awaitingAck = sessionId;
-    // Don't let a slow phone stall the stream forever.
-    clearTimeout(this.ackTimer);
-    this.ackTimer = setTimeout(() => this.ack(), 1500);
-  }
-
-  ack() {
-    clearTimeout(this.ackTimer);
-    if (this.awaitingAck == null || !this.cdp) return;
-    const sessionId = this.awaitingAck;
-    this.awaitingAck = null;
-    this.cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
-  }
-
-  sendFrame(data, force = false) {
-    const hash = crypto.createHash('md5').update(data).digest('hex');
-    if (!force && hash === this.lastHash) return;
-    this.lastHash = hash;
-    this.emit({ t: 'frame', data, w: this.viewport.w, h: this.viewport.h });
-  }
-
-  // Electron stops painting occluded/minimized windows, so screencast goes quiet; fall back to screenshots.
-  async pollIfIdle() {
-    if (!this.cdp || this.mode !== 'screen') return;
-    await this.sendPanelRect();
-    if (Date.now() - this.lastFrameAt < 2000) return;
-    await this.snapshot(false).catch(() => {});
-  }
-
-  async snapshot(force) {
-    const { data } = await this.cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: this.screencast.quality });
-    this.sendFrame(data, force);
   }
 
   toCss(nx, ny) {
@@ -1466,7 +1678,7 @@ class Session {
     const body = String(text ?? '');
     if (!body.trim()) throw new Error('Clipboard is empty');
     const found = await this.cdp.evaluate(FOCUS_COMPOSER);
-    if (!found) throw new Error('No visible chat input: open the Agent panel in "Screen" first (or tap "Open chat")');
+    if (!found) throw new Error('No visible chat input: open the Agent panel in Cursor first');
     await this.typeText(body.slice(0, 100000));
     this.emit({ t: 'status', ok: true, msg: 'Pasted into Cursor composer' });
   }
@@ -1501,7 +1713,7 @@ class Session {
 
   async sendMessage(text, submit) {
     const found = await this.cdp.evaluate(FOCUS_COMPOSER);
-    if (!found) throw new Error('No visible chat input: open the Agent panel in "Screen" first (or tap "Open chat")');
+    if (!found) throw new Error('No visible chat input: open the Agent panel in Cursor first');
     const busy = submit && await this.cdp.evaluate(helpersCall('agentState()?.busy'));
     await this.typeText(text);
     if (submit) await this.key('Enter');
@@ -1571,7 +1783,7 @@ class Session {
       }
 
       const ok = await this.cdp.evaluate(pasteImage(data, fileName, type));
-      if (ok === null) throw new Error('No visible chat input: open the Agent panel in "Screen" first (or tap "Open chat")');
+      if (ok === null) throw new Error('No visible chat input: open the Agent panel in Cursor first');
       if (!ok) throw new Error("Cursor didn't accept the image (open the Agent chat, or the model may not support images)");
       this.emit({ t: 'status', ok: true, msg: 'Image attached in Cursor; type your message and tap Send' });
     } finally {
@@ -1582,7 +1794,7 @@ class Session {
   async handle(msg) {
     if (msg.t === 'windows') return this.emit({ t: 'windows', list: (await listWindows()).map(({ id, title, kind }) => ({ id, title, kind })), current: this.targetId });
     if (msg.t === 'attach') return this.attach(msg.id);
-    if (msg.t === 'mode') return this.setMode(msg.mode);
+    if (msg.t === 'mode') return this.setMode('chat');
     if (msg.t === 'visible') {
       this.visible = Boolean(msg.v);
       if (this.targetId && this.visible) {
@@ -1609,6 +1821,44 @@ class Session {
       return this.emit({ t: 'presence', ...presenceSnapshot(this.targetId, this.deviceId) });
     }
     if (msg.t === 'dash') return this.sendDash();
+    if (msg.t === 'refreshUsage') {
+      if (!this.cdp) return;
+      await this.refreshLiveUsage({ force: true });
+      return this.pollUsage();
+    }
+    if (!this.cdp && this.transcriptFile) {
+      if (msg.t === 'file') return this.openFile(String(msg.path ?? ''));
+      if (msg.t === 'diff') return this.openDiff(String(msg.path ?? msg.name ?? ''));
+      if (msg.t === 'editorSuggest') return this.editorSuggest(String(msg.query ?? ''));
+      if (msg.t === 'editorOpen' || msg.t === 'editorFocus') {
+        const target = String(msg.query ?? msg.path ?? msg.name ?? '').trim();
+        if (target) return this.openFile(target);
+        return;
+      }
+      if (msg.t === 'editors') {
+        const ws = workspaceForTitle(this.winTitle || '');
+        const tabs = fallbackWorkspaceTabs(ws?.root);
+        return this.emit({ t: 'editors', tabs });
+      }
+      if (msg.t === 'changes') return this.emit({ t: 'changes', files: [], actions: [] });
+      if (msg.t === 'openMenu' && msg.kind === 'history') {
+        const items = listTranscriptWindows().map(w => ({ label: w.title, checked: w.id === this.targetId }));
+        return this.emit({ t: 'menu', kind: 'history', items });
+      }
+      if (msg.t === 'openMenu' && (msg.kind === 'model' || msg.kind === 'mode')) {
+        const msgText = msg.kind === 'model'
+          ? 'Model switching requires launching Cursor with start-cursor.ps1 (--remote-debugging-port=9222)'
+          : 'Read-only transcript mirror — launch Cursor with start-cursor.ps1 (--remote-debugging-port=9222) for live Mode/Model switching and open tabs';
+        return this.emit({ t: 'status', ok: false, msg: msgText });
+      }
+      if (msg.t === 'pickMenu' && msg.kind === 'history') {
+        const hit = listTranscriptWindows().find(w => w.title === msg.label);
+        if (hit) return this.attach(hit.id);
+        return;
+      }
+      if (msg.t === 'scrollChat') return;
+      throw new Error('Viewing local Cursor transcript — launch with start-cursor.ps1 (--remote-debugging-port=9222) to send messages');
+    }
     if (!this.cdp) throw new Error('Not connected to a Cursor window yet');
     // Clipboard pull is read-only; push requires the control lock.
     if (msg.t === 'clipboard' && msg.op === 'pull') return this.pullClipboard();
@@ -1650,19 +1900,17 @@ class Session {
       case 'key': return this.key(msg.key);
       case 'type': return this.typeText(String(msg.text ?? ''));
       case 'send': return this.sendMessage(String(msg.text ?? ''), msg.submit !== false);
-      case 'refresh': return this.snapshot(true);
+      case 'refresh':
       case 'quality':
-        this.screencast.quality = Math.min(90, Math.max(20, Number(msg.quality) || 60));
-        this.screencast.maxWidth = Math.min(2560, Math.max(480, Number(msg.maxWidth) || 1280));
-        if (this.mode !== 'screen') return;
-        await this.cdp.send('Page.stopScreencast');
-        return this.startScreencast();
+      case 'ack':
+        return; // Screen/screencast removed (P15)
       default: throw new Error(`Unknown command: ${msg.t}`);
     }
   }
 
   dispose() {
-    clearInterval(this.idleTimer);
+    clearInterval(this.usageTimer);
+    clearInterval(this.chatTimer);
     clearTimeout(this.ackTimer);
     releaseAllForDevice(this.deviceId);
     this.detach();
@@ -1730,14 +1978,17 @@ async function handleApi(req, res, route) {
     let wins = [];
     let cdpOk = false;
     try {
-      wins = await listWindows();
-      cdpOk = true;
-    } catch { /* Cursor not on CDP yet */ }
+      wins = await listCdpWindows();
+      cdpOk = wins.length > 0;
+      if (!wins.length) wins = listTranscriptWindows();
+    } catch {
+      wins = listTranscriptWindows();
+    }
     const st = readState();
     return json(req, res, 200, {
       ok: true,
       free: true,
-      version: '1.10.1',
+      version: '1.11.0',
       networkMode: NETWORK_MODE,
       host: HOST,
       port: PORT,
@@ -1791,6 +2042,26 @@ async function handleApi(req, res, route) {
   if (needsTotp(device)) return json(req, res, 401, { needTotp: true, error: 'Two-factor verification required' });
 
   if (route === '/api/devices') return json(req, res, 200, { devices: listDevices().map(d => deviceView(d, device)) });
+
+  // Paired phone/tablet (or tray via token): restart Cursor with --remote-debugging-port.
+  if (route === '/api/cursor/launch' && req.method === 'POST') {
+    const already = await cdpReachable();
+    if (already) {
+      return json(req, res, 200, {
+        ok: true,
+        cdpOk: true,
+        message: 'Cursor already exposes the debug port',
+      });
+    }
+    const launched = launchCursorWithCdp();
+    if (!launched.ok) {
+      console.log(`[cursor] launch failed for "${device.name}": ${launched.error}`);
+      return json(req, res, 500, { ok: false, cdpOk: false, error: launched.error });
+    }
+    console.log(`[cursor] launch requested by "${device.name}"`);
+    return json(req, res, 200, { ok: true, cdpOk: false, message: launched.message });
+  }
+
   if (route === '/api/devices/remove' && req.method === 'POST') {
     const { id } = await readJson(req);
     removeDevice(String(id));
@@ -1871,8 +2142,6 @@ wss.on('connection', (ws, req) => {
       console.log(`[+] client ${clientIp(req)}`);
       return;
     }
-    // Frame acks bypass the queue so a slow command never stalls the stream.
-    if (msg.t === 'ack') return session.ack();
     queue = queue.then(async () => {
       try {
         const queued = await session.handle(msg);
@@ -1950,6 +2219,45 @@ function broadcastReloadUi() {
 function isLoopbackReq(req) {
   const remote = req.socket.remoteAddress || '';
   return remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
+}
+
+async function cdpReachable() {
+  try {
+    const r = await fetch(`${CDP_URL}/json/version`, { signal: AbortSignal.timeout(1200) });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Detach start-cursor.ps1 / .sh so Cursor quits and reopens with --remote-debugging-port. */
+function launchCursorWithCdp() {
+  const win = process.platform === 'win32';
+  const script = path.join(__dirname, win ? 'start-cursor.ps1' : 'start-cursor.sh');
+  if (!fs.existsSync(script)) {
+    return { ok: false, error: 'start-cursor script missing next to the relay' };
+  }
+  try {
+    const child = win
+      ? spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script], {
+          cwd: __dirname,
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: true,
+        })
+      : spawn('bash', [script], {
+          cwd: __dirname,
+          detached: true,
+          stdio: 'ignore',
+        });
+    child.unref();
+    return {
+      ok: true,
+      message: 'Restarting Cursor with the debug port (unsaved editors may prompt)',
+    };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
 }
 
 // Writes the current tunnel address (encrypted) to url.json, so the app on GitHub Pages can find this relay.

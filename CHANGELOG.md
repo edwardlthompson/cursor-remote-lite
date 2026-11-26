@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.11.0
+
+- **Quota rings (UI 36–38)**: concentric 5h / period remaining rings + expandable drawer; DOM usage scrape with Cursor Usage-chip fallback (chip % used → remaining).
+- **Safer action chips**: `ACTION` / `WAIT` word boundaries so `"Running…"` is not treated as Run; exclude tool/step/revert chrome in `buttonsIn()`.
+- **Transcript fallback**: when CDP `:9222` is down, mirror recent `~/.cursor/projects/*/agent-transcripts` with an amber banner; auto-upgrade to live IDE within ~3 s.
+- **Screen removed**: phone tabs are Chat · Dual pane · Files only (no CDP screencast).
+- **Android edge-to-edge**: WindowInsets padding (`systemBars | displayCutout | ime`) around the WebView (P10).
+- **Restart Cursor**: ⋯ menu + tray + `POST /api/cursor/launch` relaunches with the debug port.
+- **Docs**: PhoneBox ADB GHSA review (not affected); Cursor 3.31 Agents Window audit notes.
+
 ## 1.10.1
 
 - **Pairing survives UI reload**: Android `clearUi` / native `clearCacheAndReload` no longer call `WebStorage.deleteAllData()` (that wiped `cr-token` / `cr-key` and bounced devices back to the pairing screen after a good connect). Phone `forceReloadUi` (UI 33) clears SW/HTTP caches only.

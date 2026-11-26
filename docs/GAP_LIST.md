@@ -14,7 +14,7 @@ Argus surface: [`ARGUS_REMOTE.md`](ARGUS_REMOTE.md) · `argus.contract.json` · 
 | Windows packaging | Manual Node | **Tray EXE + MSI**, Start with Windows, keep-awake, ADB pair |
 | Linux packaging | Manual | **deb + tar.gz** |
 | Android | APK | APK + **heads-up finish/wait sound**, OpenShouter-friendly timestamps, in-app GitHub update, Back doesn’t kill |
-| Dual pane | Phone layout | **Chat \| Dual pane \| Files \| Screen**; editor tabs synced; Markdown Preview |
+| Dual pane | Phone layout | **Chat \| Dual pane \| Files**; editor tabs synced; Markdown Preview |
 | Diffs | Preview / Keep-Undo | **Unified git diff** sheet + inline pane diffs |
 | Clipboard | — | **Push / pull** phone ↔ Cursor |
 | Multi-device | Shared session | **Per-window control lock** + Take control |
@@ -46,6 +46,12 @@ Argus surface: [`ARGUS_REMOTE.md`](ARGUS_REMOTE.md) · `argus.contract.json` · 
 | P7 | Prune stale `devices.json` after re-pairs | ✅ Done |
 | P8 | **Remote Windows + Linux app** — architecture plan | ✅ Done |
 | P4 | OVSX publish automation | ✅ Done (CI job; skips until `OVSX_PAT` set) |
+| P10 | **Android 15/16/17 edge-to-edge WindowInsets fix** — `FrameLayout` + `ViewCompat.setOnApplyWindowInsetsListener` around `WebView` (backport from Antigravity-Remote) | ✅ Done |
+| P11 | **Multi-bucket 5h / 7d color-changing concentric quota ring dock + drawer** — polish port from Antigravity-Remote (not required for core remote) | ✅ Done |
+| P12 | **Finish ACTION `\b` + exclude tool/step pills** — WAIT already has background exclusion; finish ACTION word boundaries / tool chrome (backport remainder) | ✅ Done |
+| P13 | **Local read-only transcript fallback + 3 s live CDP auto-upgrade** — empty tablet when CDP down; launch button helps but does not replace read-only fallback | ✅ Done |
+| P14 | **Detached `-Worker` IDE relauncher & Android 17 ADB deep-link quoting** — already in `start-cursor.ps1` + `adb-pair.mjs` | ✅ Done |
+| P15 | **Remove Screen view** — drop Screen tab / CDP screencast; keep Chat / Dual pane / Files | ✅ Done |
 
 ## D. Argus Runner connections
 

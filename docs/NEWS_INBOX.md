@@ -16,8 +16,8 @@ A Cursor planning agent should review these items and fold the useful ones into 
 
 **Tasks for the planning agent**
 
-- - [ ] Review the USB/ADB pairing path (adb reverse / loopback API) against the PhoneBox GHSA-j6qc-pm3p-fhg7 pattern and document the result — if the computer's agent API is forwarded onto the phone, any app on that phone may be able to reach it unless pairing traffic is authenticated, pinned, and limited to this app. Label: `[AGENT][LOCAL]` · Priority: P2 · https://github.com/ersinkoc/phonebox/security/advisories/GHSA-j6qc-pm3p-fhg7 (synced to BUILD_PLAN)
+- - [x] Review the USB/ADB pairing path (adb reverse / loopback API) against the PhoneBox GHSA-j6qc-pm3p-fhg7 pattern and document the result — **not affected**; see `SECURITY.md` (2026-11-25). Label: `[AGENT][LOCAL]` · Priority: P2 · https://github.com/ersinkoc/phonebox/security/advisories/GHSA-j6qc-pm3p-fhg7
 
-- - [ ] Audit the phone remote against Cursor 3.31 Agents Window / IDE changes (tracked project task list, Library tab, coordinators locked to Agent mode, worker-model picker, 75 pinned agents) and update CDP selectors or the phone UI where they drifted. Label: `[AGENT][LOCAL]` · Priority: P2 · https://cursor.com/docs/release-notes/agents-window#nov-20-2026 (synced to BUILD_PLAN)
+- - [x] Audit the phone remote against Cursor 3.31 Agents Window / IDE changes — see `docs/CURSOR_AGENTS_331.md` (2026-11-25). Label: `[AGENT][LOCAL]` · Priority: P2 · https://cursor.com/docs/release-notes/agents-window#nov-20-2026
 
 - - [ ] Skim Herdr's desktop keep-alive / SSH remote-session model and note anything useful for this self-hosted phone remote (laptop sleep, side-by-side agent sessions) — inspiration only, not a vendored dependency. Label: `[AGENT][LOCAL]` · Priority: P3 · https://herdr.dev/download

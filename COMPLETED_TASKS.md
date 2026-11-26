@@ -2,6 +2,30 @@
 
 Archived from `BUILD_PLAN.md` via `/cleanup`. Newest sections first.
 
+## Local polish P11–P15 + Restart Cursor (2026-11-25)
+
+- ✅ [AGENT][LOCAL] **P11** **Multi-bucket 5h / 7d color-changing concentric quota ring dock + expandable drawer** — concentric SVG rings + stacked bar drawer + DOM usage prober (chip → remaining; scrape multi-bucket when popover open) — UI 36
+- ✅ [AGENT][LOCAL] **P12** **Finish ACTION `\b` + exclude tool/step pills** — `ACTION`/`WAIT` word boundaries + tool/step/revert `data-testid` exclusion in `buttonsIn()`; `"Running…"` no longer matches Run
+- ✅ [AGENT][LOCAL] **P13** **Local read-only transcript fallback + 3 s live CDP auto-upgrade** — `transcript.mjs` mirrors `~/.cursor/projects/*/agent-transcripts`; amber `#liveBanner`; auto-upgrade when `:9222` opens (UI 37)
+- ✅ [AGENT][LOCAL] **P14** **Detached `-Worker` IDE relauncher & Android 17 ADB deep-link quoting** — already in `start-cursor.ps1` (`-Worker`) and `adb-pair.mjs` (single-quoted VIEW URI)
+- ✅ [AGENT][LOCAL] **P15** **Remove Screen view** — dropped Screen tab / `#screenView` / CDP screencast; Chat · Dual pane · Files only (UI 38)
+- ✅ [AGENT][LOCAL] **Restart Cursor with debug port** — phone ⋯ menu + tray + `POST /api/cursor/launch` → `start-cursor.ps1`/`.sh` (UI 34)
+- ✅ [AGENT][LOCAL] Review the USB/ADB pairing path against the PhoneBox GHSA-j6qc-pm3p-fhg7 pattern and document the result — **not affected** (no `adb reverse`; ADB is install + deep-link only; control uses tunnel + device token) → [`SECURITY.md`](SECURITY.md) (news P2, 2026-11-25)
+- ✅ [AGENT][LOCAL] Audit the phone remote against Cursor 3.31 Agents Window / IDE UI changes — hardened sidebar/tab filters + locked-mode note; see [`docs/CURSOR_AGENTS_331.md`](docs/CURSOR_AGENTS_331.md) (news P2, 2026-11-25)
+- ✅ [AGENT][LOCAL] **P10** **Android 15/16/17 edge-to-edge WindowInsets padding** — `FrameLayout` + `ViewCompat.setOnApplyWindowInsetsListener` (`systemBars | displayCutout | ime`, `CONSUMED`) around WebView; `androidx.core:core`
+
+## P10 Android edge-to-edge insets (2026-11-25)
+
+- ✅ [AGENT][LOCAL] **P10** Wrap WebView in `FrameLayout`; pad with `systemBars | displayCutout | ime` via `ViewCompat` / `WindowInsetsCompat.CONSUMED`; add `androidx.core:core`.
+
+## News: Cursor 3.31 Agents Window audit (2026-11-25)
+
+- ✅ [AGENT][LOCAL] Audited against [Agents Window 3.31](https://cursor.com/docs/release-notes/agents-window#nov-20-2026): core chat CDP path OK; hardened Project tab/sidebar filters + locked Agent-mode note. Docs: `docs/CURSOR_AGENTS_331.md` (UI 35).
+
+## News: PhoneBox GHSA ADB review (2026-11-25)
+
+- ✅ [AGENT][LOCAL] Reviewed USB/ADB path vs [GHSA-j6qc-pm3p-fhg7](https://github.com/ersinkoc/phonebox/security/advisories/GHSA-j6qc-pm3p-fhg7): **not affected** — no `adb reverse`; ADB only installs APK + opens one-time pair deep link; relay auth is device Bearer token over tunnel. Documented in `SECURITY.md`.
+
 ## Hotfix 1.10.1 — pairing wipe (2026-11-19)
 
 - **Symptom:** devices paired and looked good, then bounced to the pairing screen.

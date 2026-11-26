@@ -37,8 +37,7 @@ _No open template gaps in docs/GAP_LIST.md section B._
 Standing queue for This Computer. Rows: `🔲 [AGENT][LOCAL] … — scope: path`.
 
 <!-- local-agent-lane:begin -->
-- 🔲 [AGENT][LOCAL] Review the USB/ADB pairing path against the PhoneBox GHSA-j6qc-pm3p-fhg7 pattern and document the result — scope: adb-pair.mjs,server.mjs (news P2, 2026-11-25) https://github.com/ersinkoc/phonebox/security/advisories/GHSA-j6qc-pm3p-fhg7
-- 🔲 [AGENT][LOCAL] Audit the phone remote against Cursor 3.31 Agents Window / IDE UI changes — scope: packages/,app/ (news P2, 2026-11-25) https://cursor.com/docs/release-notes/agents-window#nov-20-2026
+_No local agent items._
 <!-- local-agent-lane:end -->
 
 ### Cloud agent (Cursor Cloud)
@@ -55,6 +54,7 @@ _No cloud agent items._
 
 | Sprint | Complete | Notes |
 |--------|----------|-------|
+| Local polish P10–P15 + Restart Cursor | 2026-11-25 | Quota rings, ACTION bounds, transcript fallback, Screen removed → `COMPLETED_TASKS.md` |
 | Parked leftovers (T4/T7/P4/P5) | 2026-11-19 | Unparked + closed → `COMPLETED_TASKS.md` |
 | Sprint 2 (Template + product + Argus) | 2026-11-19 | B/C/D ✅ → `COMPLETED_TASKS.md` |
 | Sprint 1 (Dual pane) | 2026-11-19 | Full sprint closed → `COMPLETED_TASKS.md` |

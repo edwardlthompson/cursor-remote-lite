@@ -27,3 +27,8 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+dependencies {
+    // WindowInsets padding for Android 15+ edge-to-edge (P10).
+    implementation 'androidx.core:core:1.13.1'
+}

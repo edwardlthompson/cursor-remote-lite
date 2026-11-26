@@ -54,17 +54,31 @@ test('image attach uses file input + modern preview selectors', () => {
   assert.match(app, /draftKey|saveDraft|loadDraft/);
   assert.match(app, /nativeNotifyAllowed|notificationsAllowed/);
   assert.match(app, /usageBar|renderUsage/);
+  assert.match(app, /quotaRingSvg|openUsageSheet/);
+  assert.match(app, /refreshUsage/);
   assert.match(app, /id="statusBell"/);
   assert.match(app, /id="composerToggle"/);
   assert.match(app, /id="composerPanel"/);
   assert.match(app, /id="uiBuild"/);
   assert.match(app, /composer-collapsed/);
-  assert.match(app, /UI_BUILD = 33/);
+  assert.match(app, /UI_BUILD = 38/);
+  assert.match(app, /liveBanner/);
+  assert.doesNotMatch(app, /id="tabScreen"|id="screenView"/);
+  assert.match(server, /listTranscriptWindows|readTranscriptChat|liveMode/);
+  assert.match(server, /listCdpWindows/);
+  assert.doesNotMatch(server, /startScreencast|Page\.startScreencast/);
   assert.match(app, /forceReloadUi|reloadUi/);
+  assert.match(app, /data-act="launchCursor"/);
   assert.match(server, /api\/ui\/reload/);
   assert.match(server, /broadcastReloadUi|reloadUi/);
+  assert.match(server, /api\/cursor\/launch/);
+  assert.match(server, /launchCursorWithCdp|cdpReachable/);
   assert.match(server, /usagePct/);
+  assert.match(server, /usageQuotas|refreshLiveUsage/);
+  assert.match(server, /refreshUsage/);
   assert.match(server, /t: 'usage'/);
+  const tray = fs.readFileSync(path.join(root, '..', 'packaging', 'windows', 'TrayHost', 'TrayApp.cs'), 'utf8');
+  assert.match(tray, /RestartCursorCdp|Restart Cursor \(debug port\)/);
 });
 
 test('sync-ui script and sync-app module exist', () => {

@@ -13,8 +13,8 @@ function docOf(name) {
   return document;
 }
 
-const WAIT_OK = /^(?!.*(background|后台))(run|allow|accept|approve|continue|yes\b|运行|允许|接受|批准|继续)/i;
-const WAIT_NO = /^(skip|reject|deny|cancel|no\b|跳过|拒绝|取消)/i;
+const WAIT_OK = /^(?!.*(background|后台))((run|allow|accept|approve|continue|yes)\b|运行|允许|接受|批准|继续)/i;
+const WAIT_NO = /^((skip|reject|deny|cancel|no)\b|跳过|拒绝|取消)/i;
 
 test('fixture: agents-waiting exposes Run/Skip and ignores Run in background', () => {
   const document = docOf('agents-waiting.html');

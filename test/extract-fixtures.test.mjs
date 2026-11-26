@@ -19,6 +19,15 @@ test('agents history pick forces refresh markers exist in server source', async 
   assert.match(src, /ensureAgentSidebar|agentSidebarChats|data-flat-index/);
 });
 
+test('Cursor 3.31 Agents Window audit: skip Project chrome + locked mode note', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
+  assert.match(src, /Tasks\|Library\|Pull Requests/);
+  assert.match(src, /Worker Model/);
+  assert.match(src, /Project coordinators stay in Agent mode/);
+  assert.match(src, /isSyncedEditorTab/);
+});
+
 test('busy/done watcher recognizes modern Agents Stop controls', async () => {
   const fs = await import('node:fs');
   const src = fs.readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
@@ -61,11 +70,16 @@ test('headless CDP bridge exposes approve/reject/stop/send', async () => {
 });
 
 test('waiting button preference prefers Run/Allow over background', () => {
-  const WAIT_OK = /^(?!.*(background|后台))(run|allow|accept|approve|continue|yes\b|运行|允许|接受|批准|继续)/i;
+  const WAIT_OK = /^(?!.*(background|后台))((run|allow|accept|approve|continue|yes)\b|运行|允许|接受|批准|继续)/i;
+  const ACTION = /^((run|skip|allow|accept|reject|deny|approve|keep|undo|continue|stop|cancel|build|retry|yes|no)\b|运行|跳过|允许|接受|拒绝|继续|停止|取消)/i;
   assert.equal(WAIT_OK.test('Run'), true);
   assert.equal(WAIT_OK.test('Allow'), true);
   assert.equal(WAIT_OK.test('Run in background'), false);
   assert.equal(WAIT_OK.test('Skip'), false);
+  assert.equal(ACTION.test('Run'), true);
+  assert.equal(ACTION.test('Running…'), false);
+  assert.equal(ACTION.test('Building'), false);
+  assert.equal(ACTION.test('Build'), true);
 });
 
 test('extension setup panel and package contribute openSetup', async () => {

@@ -61,8 +61,31 @@ export function workspaces() {
 // Window titles look like "file.py — Folder [SSH: host]" or "Folder".
 export function workspaceForTitle(title) {
   const host = /\[SSH: ([^\]]+)\]/.exec(title)?.[1] || null;
-  const folder = title.replace(/\s*\[SSH: [^\]]+\]\s*$/, '').split(' — ').pop().replace(/^●\s*/, '').trim();
-  return workspaces().find(w => w.host === host && path.posix.basename(w.root) === folder) || null;
+  const clean = String(title || '').replace(/\s*\[SSH: [^\]]+\]\s*$/, '').replace(/\s+[—-]\s+Cursor$/i, '').trim();
+  const folder = clean.split(/\s+[—-]\s+/).pop().replace(/^●\s*/, '').trim();
+  const list = workspaces();
+  const hit = list.find(w => w.host === host && path.posix.basename(w.root) === folder);
+  if (hit) return hit;
+  // Transcript fallback titles ("Cursor: …") — prefer the relay's cwd workspace.
+  if (!host && (/^Cursor:/i.test(title || '') || /^Cursor Session/i.test(title || '') || !clean)) {
+    const cwdRoot = normalizeFsPath(process.cwd().replace(/\\/g, '/'));
+    return list.find(w => !w.host && w.root === cwdRoot) || list.find(w => !w.host) || list[0] || null;
+  }
+  return null;
+}
+
+// Local workspace quick tabs when CDP :9222 is not attached (transcript mirror fallback).
+export function fallbackWorkspaceTabs(root) {
+  if (!root) return [];
+  const candidates = ['BUILD_PLAN.md', 'README.md', 'docs/GAP_LIST.md', 'server.mjs', 'transcript.mjs'];
+  const tabs = [];
+  for (const rel of candidates) {
+    const full = path.join(root, rel);
+    if (fs.existsSync(full)) {
+      tabs.push({ name: rel, label: rel, active: tabs.length === 0, dirty: false });
+    }
+  }
+  return tabs;
 }
 
 const shq = s => `'${String(s).replace(/'/g, `'\\''`)}'`;

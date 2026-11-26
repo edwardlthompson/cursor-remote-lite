@@ -88,6 +88,7 @@ internal sealed class TrayApp : ApplicationContext
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Open relay log", null, (_, _) => OpenLog());
         menu.Items.Add("Pair over ADB", null, (_, _) => PairAdb());
+        menu.Items.Add("Restart Cursor (debug port)", null, (_, _) => RestartCursorCdp());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(_autostartItem);
         menu.Items.Add(_keepAwakeItem);
@@ -251,6 +252,46 @@ internal sealed class TrayApp : ApplicationContext
             p.WaitForExit(120000);
             var clip = output.Length > 500 ? output[^500..] : output;
             _icon.ShowBalloonTip(8000, "ADB pair", string.IsNullOrWhiteSpace(clip) ? "Finished." : clip.Trim(), ToolTipIcon.Info);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Cursor Remote");
+        }
+    }
+
+    /// <summary>
+    /// Quit and relaunch Cursor with --remote-debugging-port (same as start-cursor.ps1).
+    /// </summary>
+    private void RestartCursorCdp()
+    {
+        var script = Path.Combine(_payloadDir, "start-cursor.ps1");
+        if (!File.Exists(script))
+        {
+            MessageBox.Show("start-cursor.ps1 missing from payload.", "Cursor Remote");
+            return;
+        }
+        var confirm = MessageBox.Show(
+            "Quit Cursor and reopen it with the debug port (9222)? Unsaved editors may prompt.",
+            "Cursor Remote",
+            MessageBoxButtons.OKCancel,
+            MessageBoxIcon.Warning);
+        if (confirm != DialogResult.OK) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = "-NoProfile -ExecutionPolicy Bypass -File " + Quote(script),
+                WorkingDirectory = _payloadDir,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+            });
+            _icon.ShowBalloonTip(
+                6000,
+                "Cursor Remote",
+                "Restarting Cursor with the debug port…",
+                ToolTipIcon.Info);
         }
         catch (Exception ex)
         {

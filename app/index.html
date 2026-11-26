@@ -109,15 +109,6 @@
   #queueBar .run.sub { color: #e5c07b; }
   #queueBar button { font-size: 12px; padding: 3px 9px; flex: none; }
 
-  /* screen view */
-  .tools { flex: none; display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto; scrollbar-width: none; background: #252526; border-bottom: 1px solid #333; min-width: 0; }
-  .tools::-webkit-scrollbar { display: none; }
-  #view { flex: 1; min-height: 0; overflow: auto; background: #111; -webkit-overflow-scrolling: touch; }
-  #stage { position: relative; overflow: hidden; margin: 0 auto; }
-  #screen { position: absolute; left: 0; top: 0; max-width: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: pan-x pan-y; }
-  #view.scroll #screen { touch-action: none; }
-  #ripple { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 2px solid #4af; pointer-events: none; opacity: 0; transition: opacity .4s; }
-
   /* composer + collapsible dock */
   footer { flex: none; background: #252526; border-top: 1px solid #333; padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   #presenceBar { display: none; align-items: center; gap: 8px; padding: 6px 8px; margin: 0 -2px; border-radius: 8px; background: #3a2f1a; border: 1px solid #6b5420; font-size: 12.5px; color: #f0d78c; }
@@ -132,15 +123,42 @@
   #chatTools::-webkit-scrollbar { display: none; }
   #chatTools button { font-size: 12.5px; padding: 3px 10px; border-radius: 14px; flex: none; white-space: nowrap; }
   #chatTools #pickModel { flex: 0 1 auto; min-width: 84px; overflow: hidden; text-overflow: ellipsis; }
+  #liveBanner { display: none; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: #2c2416; border-bottom: 1px solid #5c461a; font-size: 12px; color: #f0d78c; }
+  #liveBanner.show { display: flex; }
+  #liveBanner code { background: #1e1a12; padding: 1px 5px; border-radius: 4px; color: #fff; font-size: 11px; }
   #composerDock { display: flex; align-items: center; gap: 8px; min-width: 0; padding-top: 2px; }
   #uiBuild { flex: none; font-size: 11px; color: #777; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; padding: 0 2px; }
-  #usageBar { display: flex; align-items: center; gap: 10px; padding: 0; min-width: 0; flex: 1; }
+  #usageBar { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0; min-width: 0; flex: 1; overflow-x: auto; scrollbar-width: none; }
+  #usageBar::-webkit-scrollbar { display: none; }
   body.files-only #uiBuild { display: inline; }
-  #usageBar .usageTrack { flex: 1; min-width: 0; height: 6px; border-radius: 3px; background: #333; overflow: hidden; }
-  #usageBar .usageFill { height: 100%; width: 0%; border-radius: 3px; background: #3c9a5f; transition: width .25s ease, background .25s ease; }
-  #usageBar.hot .usageFill { background: #c9a227; }
-  #usageBar.crit .usageFill { background: #c44; }
-  #usageLabel { flex: none; font-size: 12px; color: #aaa; font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; }
+  .uChip { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px 3px 4px; min-height: 34px; border-radius: 17px; background: #2d2d30; border: 1px solid #3c3c40; color: #ddd; cursor: pointer; font-family: inherit; transition: border-color .18s ease, background .18s ease; }
+  .uChip:active { background: #36363b; }
+  .uChip svg { flex: none; width: 26px; height: 26px; display: block; }
+  .uChip .uMeta { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.08; min-width: 0; }
+  .uChip .uName { font-size: 10.5px; font-weight: 600; color: #e2e2e2; letter-spacing: 0.01em; white-space: nowrap; }
+  .uChip .uNums { font-size: 9.5px; color: #9c9ca4; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .uChip .uSep { color: #666; margin: 0 1px; }
+  .uOk { color: #5ec282; }
+  .uHot { color: #e8b84b; }
+  .uCrit { color: #f06565; }
+  @media (max-width: 420px) {
+    #usageBar { gap: 4px; }
+    .uChip { padding: 2px 6px 2px 3px; gap: 4px; }
+    .uChip svg { width: 24px; height: 24px; }
+    .uChip .uName { font-size: 10px; }
+    .uChip .uNums { font-size: 9px; }
+  }
+  .uSheetCard { background: #1e1e1e; border: 1px solid #333; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .uSheetHead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .uSheetHead svg { width: 38px; height: 38px; flex: none; }
+  .uSheetTitle { font-size: 14px; font-weight: 600; color: #eee; }
+  .uSheetSub { font-size: 11.5px; color: #8c8c94; }
+  .uBarRow { display: grid; grid-template-columns: 28px 1fr 62px auto; align-items: center; gap: 8px; margin-top: 5px; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .uBarWin { color: #aaa; font-weight: 600; }
+  .uBarTrack { height: 7px; border-radius: 4px; background: #333; overflow: hidden; }
+  .uBarFill { height: 100%; border-radius: 4px; transition: width .25s ease, background .25s ease; }
+  .uBarPct { text-align: right; font-weight: 600; }
+  .uBarRst { font-size: 11px; color: #888; white-space: nowrap; }
   #composerToggle { flex: none; width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; color: #bbb; border-radius: 8px; }
   #composerToggle[aria-expanded="true"] { color: #9cc8ff; }
   .row.composer { display: flex; flex-direction: column; gap: 8px; min-width: 0; align-items: stretch; }
@@ -372,7 +390,6 @@
     body.tablet-dash.dual-pane #paneView {
       background: #1e1e1e;
     }
-    body.tablet-dash.dual-pane #screenView { display: none !important; }
     body.tablet-dash.dual-pane #chatView { border-right: 0; }
   }
 </style>
@@ -388,19 +405,22 @@
     <button id="tabChat" class="on">Chat</button>
     <button id="tabPane">Dual pane</button>
     <button id="tabFiles">Files</button>
-    <button id="tabScreen">Screen</button>
   </div>
   <button id="menuBtn">⋯</button>
 </header>
 
 <div id="dashStrip" aria-label="Window status"></div>
 
+<div id="liveBanner" role="status">
+  <span>Read-only transcript fallback — CDP <code>:9222</code> is off. Run <code>start-cursor.ps1</code> (or .sh) on the PC to auto-switch to Live mode within ~3 s.</span>
+</div>
+
 <main>
   <section id="chatView" class="view active">
     <div id="list">
       <button id="older">↑ Load earlier messages</button>
       <div id="items"></div>
-      <div id="empty" hidden>No chat panel found.<br>Open an Agent chat in Cursor, or switch to "Screen".</div>
+      <div id="empty" hidden>No chat panel found.<br>Open an Agent chat in Cursor (or use Dual pane / Files).</div>
     </div>
     <button id="toBottom">↓ Latest</button>
     <div id="qnBar"></div>
@@ -440,28 +460,6 @@
     </div>
   </section>
 
-  <section id="screenView" class="view">
-    <div class="tools">
-      <button id="cropPanel" class="on">Chat panel</button>
-      <button id="cropFull">Whole window</button>
-      <button id="modeTap" class="on">Tap</button>
-      <button id="modeScroll">Scroll</button>
-      <button id="zoom">1x</button>
-      <button id="refresh">Refresh</button>
-    </div>
-    <div id="view"><div id="stage"><img id="screen" alt=""><div id="ripple"></div></div></div>
-    <div class="tools">
-      <button data-key="Escape">Esc</button>
-      <button data-key="Enter">Enter</button>
-      <button data-key="Meta+Enter">⌘Enter</button>
-      <button data-key="ArrowUp">↑</button>
-      <button data-key="ArrowDown">↓</button>
-      <button data-key="Tab">Tab</button>
-      <button data-key="Backspace">⌫</button>
-      <button data-key="Meta+l">Open chat</button>
-      <button id="rightClick">Right-click</button>
-    </div>
-  </section>
 </main>
 
 <footer>
@@ -488,10 +486,7 @@
   </div>
   <div id="composerDock">
     <span id="uiBuild" title="App shell build">UI …</span>
-    <div id="usageBar" hidden aria-label="Cursor usage">
-      <div class="usageTrack"><div class="usageFill" id="usageFill"></div></div>
-      <span id="usageLabel">Usage —</span>
-    </div>
+    <div id="usageBar" hidden aria-label="Cursor usage quotas"></div>
     <button type="button" id="composerToggle" aria-expanded="true" aria-controls="composerPanel" title="Expand composer" aria-label="Expand composer">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 14 6-6 6 6"/></svg>
     </button>
@@ -524,7 +519,7 @@
 <script src="i18n.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const UI_BUILD = 33; // bump when shell layout must force-refresh on phones
+const UI_BUILD = 38; // bump when shell layout must force-refresh on phones
 const PRIMARY = /^(run|allow|accept|approve|keep|continue|build|yes|运行|允许|接受|继续)/i;
 const store = {
   get: k => localStorage.getItem('cr-' + k),
@@ -536,10 +531,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 let base = null, info = null, ws = null, authed = false, failures = 0;
 let mode = (() => {
   const m = store.get('mode');
-  return m === 'pane' || m === 'files' || m === 'screen' ? m : 'chat';
+  // Screen view removed (P15) — migrate any stored 'screen' preference to chat.
+  return m === 'pane' || m === 'files' ? m : 'chat';
 })();
-let crop = store.get('crop') !== 'full';
-let frame = { w: 1000, h: 800 }, panel = null, zoom = 1, tapMode = 'tap', rightNext = false;
 let windows = [], currentWindow = null;
 
 // Keep the layout above the on-screen keyboard.
@@ -668,17 +662,112 @@ function applyComposerDefaultFromOrientation() {
   setComposerCollapsed(isLandscape());
 }
 
-function renderUsage(pct) {
+let usageData = null;
+
+function leftColor(pctLeft) {
+  const n = Math.max(0, Math.min(100, Math.round(Number(pctLeft) || 0)));
+  if (n < 10) return { stroke: '#e04b4b', cls: 'uCrit' };
+  if (n <= 25) return { stroke: '#e0a82e', cls: 'uHot' };
+  return { stroke: '#4fb36e', cls: 'uOk' };
+}
+
+function quotaRingSvg(h5Left, d7Left, h5Disabled = false) {
+  const n7 = Math.max(0, Math.min(100, Math.round(Number(d7Left) || 0)));
+  const has5 = h5Left != null && Number.isFinite(Number(h5Left));
+  if (!has5) {
+    const c = 2 * Math.PI * 11.4;
+    const off = c * (1 - n7 / 100);
+    const col = leftColor(n7).stroke;
+    return `<svg viewBox="0 0 32 32" aria-hidden="true">`
+      + `<circle cx="16" cy="16" r="11.4" fill="none" stroke="#3a3a3f" stroke-width="3.2"/>`
+      + (n7 > 0 ? `<circle cx="16" cy="16" r="11.4" fill="none" stroke="${col}" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 16 16)"/>` : '')
+      + `</svg>`;
+  }
+  const n5 = Math.max(0, Math.min(100, Math.round(Number(h5Left) || 0)));
+  const c5 = 2 * Math.PI * 12.2;
+  const c7 = 2 * Math.PI * 7.6;
+  const o5 = c5 * (1 - n5 / 100);
+  const o7 = c7 * (1 - n7 / 100);
+  const col5 = h5Disabled ? '#4a4a52' : leftColor(n5).stroke;
+  const col7 = leftColor(n7).stroke;
+  return `<svg viewBox="0 0 32 32" aria-hidden="true">`
+    + `<circle cx="16" cy="16" r="12.2" fill="none" stroke="#3a3a3f" stroke-width="3"${h5Disabled ? ' stroke-dasharray="3 2"' : ''}/>`
+    + (!h5Disabled && n5 > 0 ? `<circle cx="16" cy="16" r="12.2" fill="none" stroke="${col5}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${c5.toFixed(1)}" stroke-dashoffset="${o5.toFixed(1)}" transform="rotate(-90 16 16)"/>` : '')
+    + `<circle cx="16" cy="16" r="7.6" fill="none" stroke="#3a3a3f" stroke-width="2.6"/>`
+    + (n7 > 0 ? `<circle cx="16" cy="16" r="7.6" fill="none" stroke="${col7}" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="${c7.toFixed(1)}" stroke-dashoffset="${o7.toFixed(1)}" transform="rotate(-90 16 16)"/>` : '')
+    + `</svg>`;
+}
+
+function openUsageSheet() {
+  const data = usageData;
+  if (!data?.products?.length) return;
+  const badge = data.source === 'dom'
+    ? 'Live Cursor DOM scrape'
+    : (data.source === 'chip' ? 'From Cursor Usage chip (remaining)' : 'Cursor usage');
+  const cards = data.products.map(p => {
+    const has5 = p.h5Left != null && Number.isFinite(Number(p.h5Left));
+    const h5Dis = Boolean(p.h5Disabled);
+    const n5 = has5 ? Math.max(0, Math.min(100, Math.round(p.h5Left))) : null;
+    const n7 = Math.max(0, Math.min(100, Math.round(p.d7Left ?? 100)));
+    const c5 = has5 && !h5Dis ? leftColor(n5) : null;
+    const c7 = leftColor(n7);
+    const sub = p.models || 'Cursor';
+    const row7 = `<div class="uBarRow"><span class="uBarWin">7d</span><div class="uBarTrack"><div class="uBarFill" style="width:${n7}%;background:${c7.stroke}"></div></div><span class="uBarPct ${c7.cls}">${n7}% left</span><span class="uBarRst">↻ ${esc(p.reset7d || 'period')}</span></div>`;
+    const row5 = has5
+      ? (h5Dis
+        ? `<div class="uBarRow" style="opacity:0.55"><span class="uBarWin">5h</span><div class="uBarTrack"><div class="uBarFill" style="width:0%;background:#6e6e73"></div></div><span class="uBarPct">Paused</span><span class="uBarRst">Weekly cap</span></div>`
+        : `<div class="uBarRow"><span class="uBarWin">5h</span><div class="uBarTrack"><div class="uBarFill" style="width:${n5}%;background:${c5.stroke}"></div></div><span class="uBarPct ${c5.cls}">${n5}% left</span><span class="uBarRst">↻ ${esc(p.reset5h || '5h')}</span></div>`)
+      : '';
+    const note = p.note ? `<div class="hint" style="margin-top:6px">${esc(p.note)}</div>` : '';
+    return `<div class="uSheetCard">`
+      + `<div class="uSheetHead">${quotaRingSvg(n5, n7, h5Dis)}<div><div class="uSheetTitle">${esc(p.name || p.label)}</div><div class="uSheetSub">${esc(sub)}</div></div></div>`
+      + row7 + row5 + note
+      + `</div>`;
+  }).join('');
+  openSheet('usage', `<h3>Usage · Remaining Quota</h3><div class="hint" style="margin-bottom:10px">Outer ring = 5h left · Inner ring = period / Weekly left · ${esc(badge)}</div>${cards}`);
+}
+
+function renderUsage(payload) {
   const bar = $('usageBar');
   if (!bar) return;
-  if (pct == null || !Number.isFinite(pct)) { bar.hidden = true; return; }
-  const n = Math.max(0, Math.min(100, Math.round(pct)));
+  if (payload && typeof payload === 'object' && Array.isArray(payload.products)) {
+    usageData = payload;
+  } else if (typeof payload === 'number' && Number.isFinite(payload)) {
+    const n = Math.max(0, Math.min(100, Math.round(payload)));
+    usageData = {
+      mode: 'left', approx: false, source: 'chip', products: [
+        { id: 'cursor', label: 'Cursor', name: 'Included usage', h5Left: null, d7Left: n, reset7d: 'period' },
+      ],
+    };
+  }
+  const list = usageData?.products;
+  if (!list || !list.length) { bar.hidden = true; return; }
   bar.hidden = false;
-  bar.classList.toggle('hot', n >= 80 && n < 95);
-  bar.classList.toggle('crit', n >= 95);
-  $('usageFill').style.width = n + '%';
-  $('usageLabel').textContent = n + '%';
-  bar.setAttribute('aria-label', 'Usage ' + n + '%');
+  bar.innerHTML = list.map(p => {
+    const has5 = p.h5Left != null && Number.isFinite(Number(p.h5Left));
+    const h5Dis = Boolean(p.h5Disabled);
+    const n5 = has5 ? Math.max(0, Math.min(100, Math.round(p.h5Left))) : null;
+    const n7 = Math.max(0, Math.min(100, Math.round(p.d7Left ?? 100)));
+    const c5 = has5 && !h5Dis ? leftColor(n5) : null;
+    const c7 = leftColor(n7);
+    const title = has5
+      ? (h5Dis
+        ? `${p.name || p.label}: 5h paused, period ${n7}% left (${p.reset7d || 'period'})`
+        : `${p.name || p.label}: 5h ${n5}% left (${p.reset5h || '5h'}), period ${n7}% left (${p.reset7d || 'period'})`)
+      : `${p.name || p.label}: ${n7}% left (${p.reset7d || 'period'})`;
+    const nums = has5
+      ? (h5Dis
+        ? `<span class="uSep">—</span><span class="uSep">/</span><span class="${c7.cls}">${n7}</span>`
+        : `<span class="${c5.cls}">${n5}</span><span class="uSep">/</span><span class="${c7.cls}">${n7}</span>`)
+      : `<span class="${c7.cls}">${n7}%</span>`;
+    return `<button type="button" class="uChip" data-usage-chip="${esc(p.id)}" title="${esc(title)}" aria-label="${esc(title)}">`
+      + quotaRingSvg(n5, n7, h5Dis)
+      + `<span class="uMeta"><span class="uName">${esc(p.label)}</span>`
+      + `<span class="uNums">${nums}</span></span>`
+      + `</button>`;
+  }).join('');
+  bar.onclick = () => { send({ t: 'refreshUsage' }); openUsageSheet(); };
+  if (sheetKind === 'usage') openUsageSheet();
 }
 
 function send(obj) {
@@ -933,8 +1022,6 @@ function connect() {
       send({ t: 'attach', id: store.get('window') || '' });
       const fromAction = window.CursorRemoteApp?.takeNotifAction?.();
       if (fromAction) setTimeout(() => handleNotifAction(fromAction, store.get('window')), 400);
-      sentWidth = 0;
-      applyQuality();
       // Stay "present" for the relay while the socket is up — do not drop control just because the
       // phone screen is off; NotifyService + no WebView pause keep the process alive.
       send({ t: 'visible', v: true });
@@ -944,8 +1031,6 @@ function connect() {
       setTimeout(checkAppUpdate, 3000);
     }
     else if (m.t === 'chat') renderChat(m.chat);
-    else if (m.t === 'frame') onFrame(m);
-    else if (m.t === 'panel') { panel = m.rect; layoutStage(); applyQuality(); }
     else if (m.t === 'windows') { windows = m.list; currentWindow = m.current; if (sheetKind === 'windows') showWindows(); }
     else if (m.t === 'attached') {
       const prev = currentWindow || store.get('window') || '';
@@ -954,11 +1039,12 @@ function connect() {
       currentWindow = m.id;
       winTitleCache = winLabel(m.title).name;
       $('titleText').textContent = winTitleCache;
+      if ($('liveBanner')) $('liveBanner').classList.toggle('show', m.liveMode === false);
       refreshStatusBell();
       loadDraft(m.id);
       send({ t: 'windows' });
     }
-    else if (m.t === 'menu') showMenu(m.kind, m.items, m.max);
+    else if (m.t === 'menu') showMenu(m.kind, m.items, m.max, m.note);
     else if (m.t === 'params') showParams(m);
     else if (m.t === 'changes') showChanges(m);
     else if (m.t === 'diff') showDiff(m);
@@ -968,7 +1054,7 @@ function connect() {
     else if (m.t === 'presence') applyPresence(m);
     else if (m.t === 'dash') renderDash(m);
     else if (m.t === 'clipboard') onClipboardPull(m);
-    else if (m.t === 'usage') renderUsage(m.pct);
+    else if (m.t === 'usage') renderUsage(m.usage || m.pct);
     else if (m.t === 'notify') {
       // Agent finished / waiting — post a local Android shade alert (OpenShouter) even if SSE is down.
       if (window.CursorRemoteApp?.postAlert) {
@@ -1070,8 +1156,10 @@ function requestSwitchWindow() {
 }
 
 const MENU_TITLE = { mode: 'Mode', model: 'Model', history: 'Chat history' };
-function showMenu(kind, items, max) {
-  if (!items.length) return status('The menu is empty; your Cursor version may differ', false);
+function showMenu(kind, items, max, note) {
+  if (!items.length) {
+    return status(note || 'The menu is empty; your Cursor version may differ', false);
+  }
   status('');
   const maxRow = typeof max === 'boolean'
     ? `<button class="opt" data-max><span class="lbl">MAX Mode<span class="sub">Larger context, costs more</span></span><span class="switch ${max ? 'on' : ''}"></span></button>` : '';
@@ -1336,7 +1424,7 @@ $('panePickHits').onclick = e => {
 };
 
 function applyViews() {
-  // Chat = left only · Dual pane = both (landscape) · Files = right only · Screen = desktop.
+  // Chat = left only · Dual pane = both (landscape) · Files = right only.
   const dual = isLandscape() && mode === 'pane';
   const filesOnly = mode === 'files';
   document.body.classList.toggle('dual-pane', dual);
@@ -1344,20 +1432,18 @@ function applyViews() {
   if (dual) {
     $('chatView').classList.add('active');
     $('paneView').classList.add('active');
-    $('screenView').classList.remove('active');
   } else {
     $('chatView').classList.toggle('active', mode === 'chat');
     // Portrait Dual pane falls back to full files pane (same as Files).
     $('paneView').classList.toggle('active', mode === 'pane' || mode === 'files');
-    $('screenView').classList.toggle('active', mode === 'screen');
   }
   // hidden= + [hidden]{display:none!important} — CSS display:flex alone ignores the hidden attribute.
-  $('chatTools').hidden = mode === 'screen' || filesOnly;
+  $('chatTools').hidden = filesOnly;
   const composer = document.querySelector('footer .row.composer');
   if (composer) composer.hidden = filesOnly;
-  // Keep usage visible on Chat/Dual; hide with composer on Files/Screen.
-  if (filesOnly || mode === 'screen') $('usageBar').hidden = true;
-  else if ($('usageFill')?.style.width && $('usageFill').style.width !== '0%') $('usageBar').hidden = false;
+  // Keep usage visible on Chat/Dual; hide with composer on Files.
+  if (filesOnly) $('usageBar').hidden = true;
+  else if (usageData?.products?.length) $('usageBar').hidden = false;
 }
 
 function showChanges(m) {
@@ -1549,6 +1635,7 @@ function showMainMenu() {
     : `<button class="opt" data-act="appUpdate"><span class="lbl">Check for app update (now v${esc(appVersion)})</span></button>`;
   openSheet('main', `<h3>Menu</h3>
     <button class="opt" data-act="switchWindow"><span class="lbl">Switch Cursor window<span class="sub">${esc(winTitleCache || '—')}</span></span></button>
+    <button class="opt" data-act="launchCursor"><span class="lbl">Restart Cursor with debug port<span class="sub">Quits Cursor on the PC and reopens with --remote-debugging-port=9222 (needed when the remote shows empty)</span></span></button>
     ${notifyItem}
     ${inApp && appVersion ? update : ''}
     ${inApp ? '<button class="opt" data-act="changeUrl"><span class="lbl">Change app address</span></button>'
@@ -1881,6 +1968,32 @@ $('sheet').addEventListener('click', async e => {
     closeSheet();
     forceReloadUi();
   }
+  else if (act === 'launchCursor') {
+    if (!await ask('Quit Cursor on the computer and reopen it with the debug port? Unsaved editors may prompt, and this chat may disconnect.', 'Restart Cursor')) return;
+    closeSheet();
+    status('Restarting Cursor with the debug port…');
+    const r = await post('/api/cursor/launch').catch(() => null);
+    if (!r?.ok) {
+      status(r?.error || 'Could not start Cursor — check the tray / start-cursor log on the PC', false);
+      return;
+    }
+    if (r.cdpOk) {
+      status('Cursor already has the debug port');
+      return;
+    }
+    status(r.message || 'Waiting for Cursor CDP…');
+    for (let i = 0; i < 40; i++) {
+      await sleep(1500);
+      try {
+        const st = await api('/api/status').then(x => x.json());
+        if (st?.cdpOk) {
+          status('Cursor debug port is up' + (st.windows ? ` · ${st.windows} window(s)` : ''));
+          return;
+        }
+      } catch { /* relay may briefly stall while Cursor quits */ }
+    }
+    status('Cursor restart started — if the remote stays empty, check the PC tray → Restart Cursor (debug port)', false);
+  }
   else if (act === 'reconnect') { closeSheet(); ws?.close(); }
   else if (act === 'clipPush') { closeSheet(); $('clipPush').click(); }
   else if (act === 'clipPull') { closeSheet(); $('clipPull').click(); }
@@ -1910,16 +2023,14 @@ $('sheet').addEventListener('click', async e => {
 /* ---------- mode switching ---------- */
 function setMode(m) {
   saveDraft();
-  mode = m === 'pane' ? 'pane' : m === 'files' ? 'files' : m === 'screen' ? 'screen' : 'chat';
+  mode = m === 'pane' ? 'pane' : m === 'files' ? 'files' : 'chat';
   store.set('mode', mode);
   $('tabChat').classList.toggle('on', mode === 'chat');
   $('tabPane').classList.toggle('on', mode === 'pane');
   $('tabFiles').classList.toggle('on', mode === 'files');
-  $('tabScreen').classList.toggle('on', mode === 'screen');
   applyViews();
-  // Relay only distinguishes chat vs screen; Dual/Files keep chat polling.
-  if (authed) send({ t: 'mode', mode: mode === 'screen' ? 'screen' : 'chat' });
-  if (mode === 'screen') { layoutStage(); applyQuality(); }
+  // Dual/Files keep chat polling on the relay.
+  if (authed) send({ t: 'mode', mode: 'chat' });
   if (inPaneMode()) {
     // Keep whatever tab was open — do not reset to Changes when flipping Dual ↔ Files.
     if (authed) {
@@ -1940,7 +2051,6 @@ function setMode(m) {
 $('tabChat').onclick = () => setMode('chat');
 $('tabPane').onclick = () => setMode('pane');
 $('tabFiles').onclick = () => setMode('files');
-$('tabScreen').onclick = () => setMode('screen');
 
 /* ---------- chat view ---------- */
 const list = $('list'), itemsEl = $('items');
@@ -2347,7 +2457,7 @@ function showFile(m) {
   $('vPath').textContent = m.path ? '\u200e' + (m.host ? m.host + ':' : '') + m.path + (m.size != null ? ` · ${fmtSize(m.size)}` : '') : '';
   const body = $('vBody');
   if (m.error) {
-    body.innerHTML = `<div class="note err">${esc(m.error)}</div><div class="note">You can open it in Cursor from the "Screen" tab</div>`;
+    body.innerHTML = `<div class="note err">${esc(m.error)}</div><div class="note">Open the file in Cursor on the desktop, or try Dual pane → Open…</div>`;
     return;
   }
   if (m.image) {
@@ -2379,119 +2489,6 @@ $('vWrap').onclick = () => {
   $('vWrap').classList.toggle('on', on);
   store.set('wrap', on ? null : 'off');
 };
-
-/* ---------- screen view ---------- */
-const view = $('view'), stage = $('stage'), screen = $('screen');
-
-function onFrame(m) {
-  const resized = m.w !== frame.w || m.h !== frame.h;
-  frame = { w: m.w, h: m.h };
-  screen.src = 'data:image/jpeg;base64,' + m.data;
-  layoutStage();
-  if (resized) applyQuality();
-}
-screen.onload = () => send({ t: 'ack' });
-
-const cropRect = () => crop && panel ? panel : [0, 0, frame.w, frame.h];
-
-function layoutStage() {
-  if (mode !== 'screen') return;
-  const [rx, ry, rw, rh] = cropRect();
-  const stageW = view.clientWidth * zoom;
-  const scale = stageW / rw;
-  stage.style.width = stageW + 'px';
-  stage.style.height = rh * scale + 'px';
-  screen.style.width = frame.w * scale + 'px';
-  screen.style.left = -rx * scale + 'px';
-  screen.style.top = -ry * scale + 'px';
-}
-
-let sentWidth = 0;
-function applyQuality() {
-  if (mode !== 'screen' || !authed) return;
-  const [, , rw] = cropRect();
-  const px = Math.min(2560, Math.round(view.clientWidth * zoom * devicePixelRatio * frame.w / rw));
-  if (Math.abs(px - sentWidth) < 40) return;
-  sentWidth = px;
-  send({ t: 'quality', quality: 70, maxWidth: px });
-}
-
-function setCrop(on) {
-  crop = on;
-  store.set('crop', on ? 'panel' : 'full');
-  $('cropPanel').classList.toggle('on', on);
-  $('cropFull').classList.toggle('on', !on);
-  layoutStage(); applyQuality();
-}
-$('cropPanel').onclick = () => setCrop(true);
-$('cropFull').onclick = () => setCrop(false);
-
-function norm(e) {
-  const r = screen.getBoundingClientRect();
-  return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
-}
-
-function ripple(e) {
-  const r = stage.getBoundingClientRect(), el = $('ripple');
-  el.style.left = (e.clientX - r.left) + 'px';
-  el.style.top = (e.clientY - r.top) + 'px';
-  el.style.transition = 'none'; el.style.opacity = 1;
-  requestAnimationFrame(() => { el.style.transition = 'opacity .4s'; el.style.opacity = 0; });
-}
-
-let down = null;
-screen.addEventListener('pointerdown', e => {
-  down = { x: e.clientX, y: e.clientY, t: Date.now(), lastY: e.clientY, lastX: e.clientX, moved: false };
-});
-screen.addEventListener('pointermove', e => {
-  if (!down) return;
-  if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10) down.moved = true;
-  if (tapMode === 'scroll' && down.moved) {
-    const scale = frame.w / screen.getBoundingClientRect().width;
-    const dy = (down.lastY - e.clientY) * scale * 1.5, dx = (down.lastX - e.clientX) * scale * 1.5;
-    down.lastY = e.clientY; down.lastX = e.clientX;
-    const p = norm(down);
-    send({ t: 'wheel', x: p.x, y: p.y, dx, dy });
-  }
-});
-screen.addEventListener('pointerup', e => {
-  if (!down) return;
-  const longPress = Date.now() - down.t > 600;
-  if (!down.moved) {
-    const p = norm(e);
-    const button = rightNext || longPress ? 'right' : 'left';
-    rightNext = false; $('rightClick').classList.remove('on');
-    send({ t: 'tap', x: p.x, y: p.y, button });
-    ripple(e);
-  }
-  down = null;
-});
-screen.addEventListener('pointercancel', () => { down = null; });
-screen.addEventListener('contextmenu', e => e.preventDefault());
-
-function setTapMode(m) {
-  tapMode = m;
-  $('modeTap').classList.toggle('on', m === 'tap');
-  $('modeScroll').classList.toggle('on', m === 'scroll');
-  view.classList.toggle('scroll', m === 'scroll');
-}
-$('modeTap').onclick = () => setTapMode('tap');
-$('modeScroll').onclick = () => setTapMode('scroll');
-
-const ZOOMS = [1, 1.5, 2, 3];
-$('zoom').onclick = () => {
-  const cx = (view.scrollLeft + view.clientWidth / 2) / (view.scrollWidth || 1);
-  const cy = (view.scrollTop + view.clientHeight / 2) / (view.scrollHeight || 1);
-  zoom = ZOOMS[(ZOOMS.indexOf(zoom) + 1) % ZOOMS.length];
-  $('zoom').textContent = zoom + 'x';
-  layoutStage();
-  view.scrollLeft = cx * view.scrollWidth - view.clientWidth / 2;
-  view.scrollTop = cy * view.scrollHeight - view.clientHeight / 2;
-  applyQuality();
-};
-$('refresh').onclick = () => send({ t: 'refresh' });
-$('rightClick').onclick = () => { rightNext = !rightNext; $('rightClick').classList.toggle('on', rightNext); };
-document.querySelectorAll('[data-key]').forEach(b => b.onclick = () => send({ t: 'key', key: b.dataset.key }));
 
 /* ---------- composer ---------- */
 const text = $('text');
@@ -2719,8 +2716,10 @@ $('mic').onclick = () => {
   status('Listening… (tap again to stop)');
 };
 
-window.addEventListener('resize', () => { layoutStage(); applyQuality(); });
-matchMedia('(orientation: landscape)').addEventListener?.('change', () => applyComposerDefaultFromOrientation());
+matchMedia('(orientation: landscape)').addEventListener?.('change', () => {
+  applyComposerDefaultFromOrientation();
+  applyViews();
+});
 $('statusBell').onclick = () => showStatusSheet();
 $('composerToggle').onclick = () => {
   const next = !document.body.classList.contains('composer-collapsed');
@@ -2729,7 +2728,6 @@ $('composerToggle').onclick = () => {
 $('text').addEventListener('focus', () => expandComposer());
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 
-setCrop(crop);
 setMode(mode);
 loadDraft(store.get('window') || 'default');
 applyComposerDefaultFromOrientation();
