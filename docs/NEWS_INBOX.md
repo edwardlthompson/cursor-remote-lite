@@ -21,3 +21,13 @@ A Cursor planning agent should review these items and fold the useful ones into 
 - - [x] Audit the phone remote against Cursor 3.31 Agents Window / IDE changes — see `docs/CURSOR_AGENTS_331.md` (2026-11-25). Label: `[AGENT][LOCAL]` · Priority: P2 · https://cursor.com/docs/release-notes/agents-window#nov-20-2026
 
 - - [ ] Skim Herdr's desktop keep-alive / SSH remote-session model and note anything useful for this self-hosted phone remote (laptop sleep, side-by-side agent sessions) — inspiration only, not a vendored dependency. Label: `[AGENT][LOCAL]` · Priority: P3 · https://herdr.dev/download
+
+## 2026-11-26
+
+**News and updates**
+
+- Cursor 3.32.4 has been the stable download since about Nov 24 (Cursor's download API returns 3.32.4, commit 0925c4b8), but the release notes still stop at 3.31 (Nov 20). Forum reports list Agents Window beta bugs (@-mentions search only the first workspace root; chats moved from cloud to local disappear). A version bump with no notes can still change the Agents/composer DOM this relay scrapes over CDP, so this extends the 11-25 Cursor 3.31 audit. [download API](https://cursor.com/api/download?platform=linux-x64&releaseTrack=stable) · [release notes](https://cursor.com/docs/release-notes)
+
+**Tasks for the planning agent**
+
+- [x] Re-run the CDP DOM fixtures and smoke test against Cursor 3.32.4 (extend the 3.31 audit in docs/CURSOR_AGENTS_331.md) — 3.32.4 reached the stable channel with no release notes, so selector breaks would be silent. Label: `[AGENT][LOCAL]` · Priority: P2 · https://cursor.com/api/download?platform=linux-x64&releaseTrack=stable (synced to BUILD_PLAN)

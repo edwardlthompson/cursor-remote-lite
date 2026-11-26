@@ -37,7 +37,7 @@ _No open template gaps in docs/GAP_LIST.md section B._
 Standing queue for This Computer. Rows: `🔲 [AGENT][LOCAL] … — scope: path`.
 
 <!-- local-agent-lane:begin -->
-_No local agent items._
+- 🔲 [AGENT][LOCAL] Re-run the CDP DOM fixtures and smoke test against Cursor 3.32.4 (extend the 3.31 audit) — scope: test/,server.mjs,transcript.mjs,docs/CURSOR_AGENTS_331.md (news P2, 2026-11-26) https://cursor.com/api/download?platform=linux-x64&releaseTrack=stable
 <!-- local-agent-lane:end -->
 
 ### Cloud agent (Cursor Cloud)
