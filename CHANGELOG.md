@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.11.2
+
+- **ADB multi-device pairing**: issue a fresh one-use pairing code per device and wait for each to finish (sharing one code across phone + tablet caused Auth failed on the second device).
+
 ## 1.11.1
 
 - **Windows/Linux payload**: include `transcript.mjs` (and Linux `sync-app.mjs`) in the packaged relay so tray/deb installs start after 1.11.0's read-only transcript fallback.
