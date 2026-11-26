@@ -50,6 +50,16 @@ function adb(bin, argv) {
   return spawnSync(bin, argv, { encoding: 'utf8' });
 }
 
+function sleepSync(ms) {
+  // Portable short sleep without async (Windows timeout.exe needs cmd /c).
+  try {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.max(1, ms | 0));
+  } catch {
+    const end = Date.now() + ms;
+    while (Date.now() < end) { /* spin */ }
+  }
+}
+
 function onlineDevices(bin) {
   const r = adb(bin, ['devices']);
   if (r.status !== 0) return [];
@@ -102,30 +112,62 @@ export function pairOverAdb({ apkPath = '', install = true, pair = true } = {}) 
         message: 'Phone app address unknown. Run setup first so the Pages URL exists.',
       });
     } else {
-      const { link, minutes } = createPairing(base);
-      pairingLink = link;
-      const m = /[#&]pair=([\w.-]+)/.exec(link);
-      const data = m?.[1];
-      if (!data) {
-        results.push({ step: 'pair', ok: false, message: 'Failed to build pairing payload.' });
-      } else {
+      // Pairing codes are one-use: open a fresh link per device (never share one code across phones).
+      for (const serial of devices) {
+        const before = new Set(listDevices().map(d => d.id));
+        const { link, minutes } = createPairing(base);
+        pairingLink = link;
+        const m = /[#&]pair=([\w.-]+)/.exec(link);
+        const data = m?.[1];
+        if (!data) {
+          results.push({ step: 'pair', serial, ok: false, message: 'Failed to build pairing payload.' });
+          continue;
+        }
         const uri = deepLink(base, data);
-        for (const serial of devices) {
-          // Quote for the *device* shell so & in the query string is not interpreted.
-          const quoted = `'${uri.replace(/'/g, `'\\''`)}'`;
-          const r = adb(bin, ['-s', serial, 'shell', `am start -a android.intent.action.VIEW -d ${quoted}`]);
-          const out = `${r.stdout || ''}${r.stderr || ''}`.trim();
-          const ok = r.status === 0 && !/Error/i.test(out);
+        // Quote for the *device* shell so & in the query string is not interpreted.
+        const quoted = `'${uri.replace(/'/g, `'\\''`)}'`;
+        const r = adb(bin, ['-s', serial, 'shell', `am start -a android.intent.action.VIEW -d ${quoted}`]);
+        const out = `${r.stdout || ''}${r.stderr || ''}`.trim();
+        const opened = r.status === 0 && !/Error/i.test(out);
+        if (!opened) {
           results.push({
             step: 'pair',
             serial,
-            ok,
+            ok: false,
             minutes,
-            message: ok
-              ? `Opened pairing deep link on ${serial} (${minutes} min, one use)`
-              : (out || 'adb am start failed'),
+            message: out || 'adb am start failed',
           });
+          continue;
         }
+        // Wait until this device consumes the pairing code (new device id appears).
+        let paired = false;
+        const deadline = Date.now() + 45000;
+        while (Date.now() < deadline) {
+          sleepSync(1500);
+          const now = listDevices();
+          if (now.some(d => !before.has(d.id) && (Date.now() - (d.lastSeen || 0)) < 60000)) {
+            paired = true;
+            break;
+          }
+          // pairing.json gone means code was consumed (success path)
+          try {
+            if (!fs.existsSync(path.join(os.homedir(), '.cursor-remote-lite', 'pairing.json'))) {
+              sleepSync(800);
+              paired = listDevices().some(d => !before.has(d.id));
+              break;
+            }
+          } catch {}
+        }
+        results.push({
+          step: 'pair',
+          serial,
+          ok: paired,
+          minutes,
+          message: paired
+            ? `Paired ${serial} (fresh one-use link, ${minutes} min)`
+            : `Opened link on ${serial} but pairing did not finish within 45s — complete in the app, then re-run for remaining devices`,
+        });
+        if (!paired) break;
       }
     }
   }
